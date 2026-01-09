@@ -9,11 +9,18 @@ export default function CustomerLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-background">
+    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
       {/* App Container - Mobile First Design */}
-      <div className="max-w-[480px] mx-auto min-h-screen bg-background relative shadow-2xl shadow-black/50">
+      <div style={{
+        maxWidth: '480px',
+        margin: '0 auto',
+        minHeight: '100vh',
+        backgroundColor: '#f8fafc',
+        position: 'relative',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+      }}>
         <Header />
-        <main className="pb-24">{children}</main>
+        <main style={{ paddingBottom: '96px' }}>{children}</main>
         <BottomNav />
       </div>
     </div>

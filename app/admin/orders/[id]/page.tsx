@@ -2,25 +2,31 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Phone, MapPin, Clock, User, CheckCircle, XCircle, Truck } from 'lucide-react';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import Badge from '@/components/ui/Badge';
+import { ArrowLeft, Phone, MapPin, User, CheckCircle, XCircle, Truck } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { Order } from '@/types';
 import { formatPrice, formatDate } from '@/lib/utils';
-import { useToast } from '@/components/ui/Toast';
 
 const STATUS_FLOW = ['pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered'];
+
+const statusColors: Record<string, { bg: string; text: string }> = {
+  pending: { bg: '#fef3c7', text: '#d97706' },
+  confirmed: { bg: '#dbeafe', text: '#2563eb' },
+  preparing: { bg: '#e0e7ff', text: '#4f46e5' },
+  out_for_delivery: { bg: '#dbeafe', text: '#2563eb' },
+  delivered: { bg: '#dcfce7', text: '#16a34a' },
+  cancelled: { bg: '#fee2e2', text: '#dc2626' },
+};
 
 export default function AdminOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const toast = useToast();
   const [order, setOrder] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const orderRef = doc(db, 'orders', id);
@@ -43,9 +49,11 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
         status: newStatus,
         updatedAt: serverTimestamp(),
       });
-      toast.success(`Order status updated to ${newStatus}`);
-    } catch (error) {
-      toast.error('Failed to update status');
+      setSuccessMsg(`Order status updated to ${newStatus}`);
+      setTimeout(() => setSuccessMsg(''), 3000);
+    } catch (err) {
+      setError('Failed to update status');
+      setTimeout(() => setError(''), 3000);
     }
     setIsUpdating(false);
   };
@@ -57,265 +65,264 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
     return STATUS_FLOW[currentIndex + 1];
   };
 
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, 'warning' | 'primary' | 'secondary' | 'success' | 'danger'> = {
-      pending: 'warning',
-      confirmed: 'primary',
-      preparing: 'secondary',
-      out_for_delivery: 'primary',
-      delivered: 'success',
-      cancelled: 'danger',
-    };
-    return <Badge variant={variants[status] || 'warning'}>{status.replace('_', ' ')}</Badge>;
-  };
-
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}>
+        <div style={{ width: '32px', height: '32px', border: '4px solid #059669', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
       </div>
     );
   }
 
   if (!order) {
     return (
-      <div className="text-center py-12">
-        <p className="text-foreground font-medium">Order not found</p>
-        <Button variant="ghost" onClick={() => router.back()} className="mt-4">
-          <ArrowLeft className="w-4 h-4" />
+      <div style={{ textAlign: 'center', padding: '48px' }}>
+        <p style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b' }}>Order not found</p>
+        <button onClick={() => router.back()} style={{ marginTop: '16px', padding: '8px 16px', backgroundColor: '#f1f5f9', border: 'none', borderRadius: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+          <ArrowLeft style={{ width: '16px', height: '16px' }} />
           Go Back
-        </Button>
+        </button>
       </div>
     );
   }
 
   const nextStatus = getNextStatus();
+  const statusColor = statusColors[order.status] || { bg: '#f1f5f9', text: '#64748b' };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Order #{order.id.slice(-6)}</h1>
-          <p className="text-muted">{formatDate(order.createdAt)}</p>
+    <div>
+      {/* Success Toast */}
+      {successMsg && (
+        <div style={{ position: 'fixed', top: '16px', right: '16px', backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '12px', padding: '12px 16px', zIndex: 100 }}>
+          <span style={{ fontSize: '14px', color: '#059669' }}>{successMsg}</span>
         </div>
-        <div className="ml-auto">{getStatusBadge(order.status)}</div>
+      )}
+
+      {/* Error Toast */}
+      {error && (
+        <div style={{ position: 'fixed', top: '16px', right: '16px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '12px 16px', zIndex: 100 }}>
+          <span style={{ fontSize: '14px', color: '#dc2626' }}>{error}</span>
+        </div>
+      )}
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+        <button onClick={() => router.back()} style={{ width: '40px', height: '40px', backgroundColor: '#f1f5f9', border: 'none', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          <ArrowLeft style={{ width: '20px', height: '20px', color: '#1e293b' }} />
+        </button>
+        <div>
+          <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#1e293b', margin: 0 }}>Order #{order.id.slice(-6)}</h1>
+          <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>{formatDate(order.createdAt)}</p>
+        </div>
+        <span style={{ marginLeft: 'auto', padding: '6px 16px', backgroundColor: statusColor.bg, color: statusColor.text, borderRadius: '20px', fontSize: '13px', fontWeight: '500', textTransform: 'capitalize' }}>
+          {order.status.replace('_', ' ')}
+        </span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Order Details */}
-        <div className="lg:col-span-2 space-y-6">
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
+        {/* Left Column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {/* Customer Info */}
-          <Card>
-            <h2 className="text-lg font-semibold text-foreground mb-4">Customer Details</h2>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <User className="w-5 h-5 text-muted" />
-                <span className="text-foreground">{order.userName || 'N/A'}</span>
+          <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: '0 0 16px' }}>Customer Details</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <User style={{ width: '20px', height: '20px', color: '#64748b' }} />
+                <span style={{ color: '#1e293b' }}>{order.userName || 'N/A'}</span>
               </div>
-              <div className="flex items-center gap-3">
-                <Phone className="w-5 h-5 text-muted" />
-                <span className="text-foreground">{order.userPhone}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Phone style={{ width: '20px', height: '20px', color: '#64748b' }} />
+                <span style={{ color: '#1e293b' }}>{order.userPhone}</span>
               </div>
               {order.deliveryAddress && (
-                <div className="flex items-start gap-3">
-                  <MapPin className="w-5 h-5 text-muted mt-0.5" />
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                  <MapPin style={{ width: '20px', height: '20px', color: '#64748b', marginTop: '2px' }} />
                   <div>
-                    <p className="text-foreground">{order.deliveryAddress.label}</p>
-                    <p className="text-sm text-muted">{order.deliveryAddress.address}</p>
+                    <p style={{ color: '#1e293b', margin: 0 }}>{order.deliveryAddress.street}</p>
+                    <p style={{ fontSize: '14px', color: '#64748b', margin: '4px 0 0' }}>{order.deliveryAddress.village}</p>
                   </div>
                 </div>
               )}
             </div>
-          </Card>
+          </div>
 
           {/* Items */}
           {order.items && order.items.length > 0 && (
-            <Card>
-              <h2 className="text-lg font-semibold text-foreground mb-4">Order Items</h2>
-              <div className="space-y-3">
+            <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: '0 0 16px' }}>Order Items</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {order.items.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between py-3 border-b border-border last:border-0"
-                  >
+                  <div key={index} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: index < order.items.length - 1 ? '1px solid #e2e8f0' : 'none' }}>
                     <div>
-                      <p className="font-medium text-foreground">{item.name}</p>
-                      <p className="text-sm text-muted">
-                        {formatPrice(item.price)} x {item.quantity}
-                      </p>
+                      <p style={{ fontWeight: '500', color: '#1e293b', margin: 0 }}>{item.name}</p>
+                      <p style={{ fontSize: '14px', color: '#64748b', margin: '4px 0 0' }}>{formatPrice(item.price)} x {item.quantity}</p>
                     </div>
-                    <p className="font-medium text-foreground">
-                      {formatPrice(item.price * item.quantity)}
-                    </p>
+                    <p style={{ fontWeight: '500', color: '#1e293b' }}>{formatPrice(item.price * item.quantity)}</p>
                   </div>
                 ))}
               </div>
-            </Card>
+            </div>
           )}
 
           {/* Ride Details */}
-          {order.type === 'transport' && order.rideDetails && (
-            <Card>
-              <h2 className="text-lg font-semibold text-foreground mb-4">Ride Details</h2>
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-success" />
+          {order.type === 'transport' && order.pickup && order.drop && (
+            <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: '0 0 16px' }}>Ride Details</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#16a34a' }} />
                   <div>
-                    <p className="text-sm text-muted">Pickup</p>
-                    <p className="text-foreground">{order.rideDetails.pickup}</p>
+                    <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>Pickup</p>
+                    <p style={{ color: '#1e293b', margin: '2px 0 0' }}>{order.pickup.name}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-danger" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#dc2626' }} />
                   <div>
-                    <p className="text-sm text-muted">Dropoff</p>
-                    <p className="text-foreground">{order.rideDetails.dropoff}</p>
+                    <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>Dropoff</p>
+                    <p style={{ color: '#1e293b', margin: '2px 0 0' }}>{order.drop.name}</p>
                   </div>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted">Vehicle</span>
-                  <span className="text-foreground capitalize">{order.rideDetails.vehicleType}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', paddingTop: '8px', borderTop: '1px solid #e2e8f0' }}>
+                  <span style={{ color: '#64748b' }}>Vehicle</span>
+                  <span style={{ color: '#1e293b', textTransform: 'capitalize' }}>{order.transportType}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted">Distance</span>
-                  <span className="text-foreground">{order.rideDetails.distance} km</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                  <span style={{ color: '#64748b' }}>Distance</span>
+                  <span style={{ color: '#1e293b' }}>{order.distance?.toFixed(1)} km</span>
                 </div>
               </div>
-            </Card>
+            </div>
           )}
 
           {/* Service Details */}
-          {order.type === 'service' && order.serviceDetails && (
-            <Card>
-              <h2 className="text-lg font-semibold text-foreground mb-4">Service Details</h2>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-muted">Service Type</span>
-                  <span className="text-foreground capitalize">{order.serviceDetails.serviceType}</span>
+          {order.type === 'service' && (
+            <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: '0 0 16px' }}>Service Details</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748b' }}>Service Type</span>
+                  <span style={{ color: '#1e293b', textTransform: 'capitalize' }}>{order.serviceType}</span>
                 </div>
-                {order.serviceDetails.subService && (
-                  <div className="flex justify-between">
-                    <span className="text-muted">Sub-service</span>
-                    <span className="text-foreground">{order.serviceDetails.subService}</span>
+                {order.serviceOption && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748b' }}>Service</span>
+                    <span style={{ color: '#1e293b' }}>{order.serviceOption}</span>
                   </div>
                 )}
-                {order.serviceDetails.description && (
-                  <div>
-                    <p className="text-muted mb-1">Description</p>
-                    <p className="text-foreground">{order.serviceDetails.description}</p>
+                {order.description && (
+                  <div style={{ paddingTop: '8px', borderTop: '1px solid #e2e8f0' }}>
+                    <p style={{ color: '#64748b', margin: '0 0 4px' }}>Description</p>
+                    <p style={{ color: '#1e293b', margin: 0 }}>{order.description}</p>
                   </div>
                 )}
-                {order.serviceDetails.scheduledDate && (
-                  <div className="flex justify-between">
-                    <span className="text-muted">Scheduled</span>
-                    <span className="text-foreground">{order.serviceDetails.scheduledDate}</span>
+                {order.preferredDate && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748b' }}>Scheduled</span>
+                    <span style={{ color: '#1e293b' }}>{order.preferredDate} {order.preferredTime}</span>
                   </div>
                 )}
               </div>
-            </Card>
+            </div>
           )}
         </div>
 
-        {/* Actions Sidebar */}
-        <div className="space-y-6">
+        {/* Right Column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {/* Order Summary */}
-          <Card>
-            <h2 className="text-lg font-semibold text-foreground mb-4">Order Summary</h2>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-muted">Subtotal</span>
-                <span className="text-foreground">{formatPrice(order.itemsTotal || order.totalAmount)}</span>
+          <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: '0 0 16px' }}>Order Summary</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#64748b' }}>Subtotal</span>
+                <span style={{ color: '#1e293b' }}>{formatPrice(order.itemsTotal || order.totalAmount)}</span>
               </div>
               {order.deliveryCharge !== undefined && order.deliveryCharge > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted">Delivery</span>
-                  <span className="text-foreground">{formatPrice(order.deliveryCharge)}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748b' }}>Delivery</span>
+                  <span style={{ color: '#1e293b' }}>{formatPrice(order.deliveryCharge)}</span>
                 </div>
               )}
-              <div className="flex justify-between pt-3 border-t border-border">
-                <span className="font-semibold text-foreground">Total</span>
-                <span className="font-bold text-primary text-xl">{formatPrice(order.totalAmount)}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '12px', borderTop: '1px solid #e2e8f0' }}>
+                <span style={{ fontWeight: '600', color: '#1e293b' }}>Total</span>
+                <span style={{ fontSize: '20px', fontWeight: '700', color: '#059669' }}>{formatPrice(order.totalAmount)}</span>
               </div>
             </div>
-          </Card>
+          </div>
 
           {/* Actions */}
-          <Card>
-            <h2 className="text-lg font-semibold text-foreground mb-4">Actions</h2>
-            <div className="space-y-3">
+          <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: '0 0 16px' }}>Actions</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {order.status === 'pending' && (
                 <>
-                  <Button
-                    className="w-full"
+                  <button
                     onClick={() => updateStatus('confirmed')}
-                    isLoading={isUpdating}
+                    disabled={isUpdating}
+                    style={{ width: '100%', padding: '14px', backgroundColor: '#059669', color: '#ffffff', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: isUpdating ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: isUpdating ? 0.7 : 1 }}
                   >
-                    <CheckCircle className="w-4 h-4" />
+                    <CheckCircle style={{ width: '18px', height: '18px' }} />
                     Accept Order
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full text-danger border-danger"
+                  </button>
+                  <button
                     onClick={() => updateStatus('cancelled')}
-                    isLoading={isUpdating}
+                    disabled={isUpdating}
+                    style={{ width: '100%', padding: '14px', backgroundColor: '#ffffff', color: '#dc2626', border: '1px solid #fecaca', borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: isUpdating ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: isUpdating ? 0.7 : 1 }}
                   >
-                    <XCircle className="w-4 h-4" />
+                    <XCircle style={{ width: '18px', height: '18px' }} />
                     Reject Order
-                  </Button>
+                  </button>
                 </>
               )}
               {nextStatus && order.status !== 'pending' && order.status !== 'cancelled' && (
-                <Button
-                  className="w-full"
+                <button
                   onClick={() => updateStatus(nextStatus)}
-                  isLoading={isUpdating}
+                  disabled={isUpdating}
+                  style={{ width: '100%', padding: '14px', backgroundColor: '#059669', color: '#ffffff', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: isUpdating ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: isUpdating ? 0.7 : 1 }}
                 >
-                  {nextStatus === 'out_for_delivery' && <Truck className="w-4 h-4" />}
-                  {nextStatus === 'delivered' && <CheckCircle className="w-4 h-4" />}
+                  {nextStatus === 'out_for_delivery' && <Truck style={{ width: '18px', height: '18px' }} />}
+                  {nextStatus === 'delivered' && <CheckCircle style={{ width: '18px', height: '18px' }} />}
                   Mark as {nextStatus.replace('_', ' ')}
-                </Button>
+                </button>
               )}
               {order.status === 'delivered' && (
-                <p className="text-center text-success font-medium">Order Completed</p>
+                <p style={{ textAlign: 'center', color: '#16a34a', fontWeight: '500' }}>Order Completed</p>
               )}
               {order.status === 'cancelled' && (
-                <p className="text-center text-danger font-medium">Order Cancelled</p>
+                <p style={{ textAlign: 'center', color: '#dc2626', fontWeight: '500' }}>Order Cancelled</p>
               )}
             </div>
-          </Card>
+          </div>
 
           {/* Timeline */}
-          <Card>
-            <h2 className="text-lg font-semibold text-foreground mb-4">Order Timeline</h2>
-            <div className="space-y-4">
+          <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: '0 0 16px' }}>Order Timeline</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {STATUS_FLOW.map((status, index) => {
                 const currentIndex = STATUS_FLOW.indexOf(order.status);
                 const isCompleted = index <= currentIndex;
                 const isCurrent = index === currentIndex;
 
                 return (
-                  <div key={status} className="flex items-center gap-3">
-                    <div
-                      className={`w-3 h-3 rounded-full ${
-                        isCompleted ? 'bg-success' : 'bg-border'
-                      } ${isCurrent ? 'ring-2 ring-success ring-offset-2 ring-offset-card' : ''}`}
-                    />
-                    <span
-                      className={`capitalize ${
-                        isCompleted ? 'text-foreground' : 'text-muted'
-                      } ${isCurrent ? 'font-medium' : ''}`}
-                    >
+                  <div key={status} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{
+                      width: '12px',
+                      height: '12px',
+                      borderRadius: '50%',
+                      backgroundColor: isCompleted ? '#16a34a' : '#e2e8f0',
+                      boxShadow: isCurrent ? '0 0 0 4px rgba(22, 163, 74, 0.2)' : 'none'
+                    }} />
+                    <span style={{
+                      color: isCompleted ? '#1e293b' : '#94a3b8',
+                      fontWeight: isCurrent ? '600' : '400',
+                      textTransform: 'capitalize'
+                    }}>
                       {status.replace('_', ' ')}
                     </span>
                   </div>
                 );
               })}
             </div>
-          </Card>
+          </div>
         </div>
       </div>
     </div>

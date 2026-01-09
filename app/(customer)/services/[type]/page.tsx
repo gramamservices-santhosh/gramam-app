@@ -3,17 +3,11 @@
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Check } from 'lucide-react';
-import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
-import Input from '@/components/ui/Input';
-import { getServiceCategory, SERVICE_CATEGORIES } from '@/constants/services';
-import { useOrderStore } from '@/store/orderStore';
+import { getServiceCategory } from '@/constants/services';
 import { useAuthStore } from '@/store/authStore';
-import { useToast } from '@/components/ui/Toast';
 import { generateOrderId } from '@/lib/utils';
 import { db } from '@/lib/firebase';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
-import { cn } from '@/lib/utils';
 import { ServiceType } from '@/types';
 
 export default function ServiceTypePage() {
@@ -22,7 +16,6 @@ export default function ServiceTypePage() {
   const serviceType = params.type as string;
 
   const { user } = useAuthStore();
-  const { success, error: showError } = useToast();
 
   const [selectedOption, setSelectedOption] = useState('');
   const [description, setDescription] = useState('');
@@ -33,35 +26,42 @@ export default function ServiceTypePage() {
     street: '',
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   const service = getServiceCategory(serviceType);
 
   if (!service) {
     return (
-      <div className="px-4 py-8 text-center">
-        <span className="text-4xl">❓</span>
-        <p className="text-muted mt-2">Service not found</p>
-        <Button onClick={() => router.push('/services')} className="mt-4">
+      <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+        <span style={{ fontSize: '32px' }}>❓</span>
+        <p style={{ color: '#64748b', marginTop: '8px' }}>Service not found</p>
+        <button
+          onClick={() => router.push('/services')}
+          style={{ marginTop: '16px', padding: '12px 24px', backgroundColor: '#059669', color: '#ffffff', border: 'none', borderRadius: '12px', fontWeight: '600', cursor: 'pointer' }}
+        >
           Back to Services
-        </Button>
+        </button>
       </div>
     );
   }
 
   const handleBookService = async () => {
     if (!user) {
-      showError('Please login to book service');
+      setError('Please login to book service');
       router.push('/login');
       return;
     }
 
     if (!selectedOption) {
-      showError('Please select a service option');
+      setError('Please select a service option');
+      setTimeout(() => setError(''), 3000);
       return;
     }
 
     if (!address.village || !address.street) {
-      showError('Please enter your address');
+      setError('Please enter your address');
+      setTimeout(() => setError(''), 3000);
       return;
     }
 
@@ -85,7 +85,7 @@ export default function ServiceTypePage() {
         preferredDate: preferredDate || undefined,
         preferredTime: preferredTime || undefined,
         serviceAddress: address,
-        totalAmount: 0, // Will be quoted by admin
+        totalAmount: 0,
 
         status: 'pending' as const,
         paymentMethod: 'cod' as const,
@@ -103,77 +103,96 @@ export default function ServiceTypePage() {
         updatedAt: Timestamp.now(),
       };
 
-      // Save to Firestore
       await setDoc(doc(db, 'orders', orderId), order);
 
-      // Show success
-      success('Service request submitted! We will contact you shortly.');
-
-      // Navigate to order details
+      setSuccessMsg('Service request submitted! We will contact you shortly.');
       router.push(`/orders/${orderId}`);
     } catch (err) {
       console.error('Error booking service:', err);
-      showError('Failed to submit request. Please try again.');
+      setError('Failed to submit request. Please try again.');
+      setTimeout(() => setError(''), 3000);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Get minimum date (today)
   const today = new Date().toISOString().split('T')[0];
 
   return (
-    <div className="px-4 py-4 pb-40">
+    <div style={{ padding: '16px', paddingBottom: '180px' }}>
+      {/* Error Toast */}
+      {error && (
+        <div style={{ position: 'fixed', top: '16px', left: '16px', right: '16px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '12px 16px', zIndex: 100 }}>
+          <span style={{ fontSize: '14px', color: '#dc2626' }}>{error}</span>
+        </div>
+      )}
+
+      {/* Success Toast */}
+      {successMsg && (
+        <div style={{ position: 'fixed', top: '16px', left: '16px', right: '16px', backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '12px', padding: '12px 16px', zIndex: 100 }}>
+          <span style={{ fontSize: '14px', color: '#059669' }}>{successMsg}</span>
+        </div>
+      )}
+
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
         <button
           onClick={() => router.back()}
-          className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center hover:border-primary/50 transition-colors"
+          style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
         >
-          <ArrowLeft className="w-5 h-5 text-foreground" />
+          <ArrowLeft style={{ width: '20px', height: '20px', color: '#1e293b' }} />
         </button>
         <div>
-          <h1 className="text-xl font-bold text-foreground">
+          <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
             {service.icon} {service.name}
           </h1>
-          <p className="text-sm text-muted">{service.description}</p>
+          <p style={{ fontSize: '14px', color: '#64748b', margin: '2px 0 0' }}>{service.description}</p>
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {/* Service Options */}
-        <Card>
-          <h3 className="font-semibold text-foreground mb-3">
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', margin: '0 0 12px' }}>
             Select Service Type
           </h3>
-          <div className="space-y-2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {service.options.map((option) => (
               <button
                 key={option.id}
                 onClick={() => setSelectedOption(option.id)}
-                className={cn(
-                  'w-full flex items-center gap-3 p-3 rounded-xl border transition-colors text-left',
-                  selectedOption === option.id
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border hover:border-primary/50'
-                )}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px',
+                  borderRadius: '12px',
+                  border: selectedOption === option.id ? '2px solid #059669' : '1px solid #e2e8f0',
+                  backgroundColor: selectedOption === option.id ? '#ecfdf5' : '#ffffff',
+                  textAlign: 'left',
+                  cursor: 'pointer'
+                }}
               >
-                <div
-                  className={cn(
-                    'w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0',
-                    selectedOption === option.id
-                      ? 'border-primary bg-primary'
-                      : 'border-muted'
-                  )}
-                >
+                <div style={{
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  border: selectedOption === option.id ? '2px solid #059669' : '2px solid #94a3b8',
+                  backgroundColor: selectedOption === option.id ? '#059669' : 'transparent',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
                   {selectedOption === option.id && (
-                    <Check className="w-3 h-3 text-white" />
+                    <Check style={{ width: '12px', height: '12px', color: '#ffffff' }} />
                   )}
                 </div>
                 <div>
-                  <p className="font-medium text-foreground">{option.name}</p>
+                  <p style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b', margin: 0 }}>{option.name}</p>
                   {option.description && (
-                    <p className="text-xs text-muted mt-0.5">
+                    <p style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
                       {option.description}
                     </p>
                   )}
@@ -181,43 +200,54 @@ export default function ServiceTypePage() {
               </button>
             ))}
           </div>
-        </Card>
+        </div>
 
         {/* Problem Description */}
-        <Card>
-          <h3 className="font-semibold text-foreground mb-3">
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', margin: '0 0 12px' }}>
             Describe Your Requirement
           </h3>
           <textarea
             placeholder="Describe the issue or what you need..."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="w-full bg-border/30 border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary resize-none"
+            style={{
+              width: '100%',
+              padding: '12px',
+              border: '1px solid #e2e8f0',
+              borderRadius: '10px',
+              fontSize: '14px',
+              color: '#1e293b',
+              resize: 'none',
+              boxSizing: 'border-box',
+              outline: 'none'
+            }}
             rows={3}
           />
-        </Card>
+        </div>
 
         {/* Preferred Date & Time */}
-        <Card>
-          <h3 className="font-semibold text-foreground mb-3">
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', margin: '0 0 12px' }}>
             Preferred Date & Time
           </h3>
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              type="date"
-              label="Date"
-              value={preferredDate}
-              onChange={(e) => setPreferredDate(e.target.value)}
-              min={today}
-            />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div>
-              <label className="block text-sm font-medium text-foreground/80 mb-1.5">
-                Time
-              </label>
+              <label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Date</label>
+              <input
+                type="date"
+                value={preferredDate}
+                onChange={(e) => setPreferredDate(e.target.value)}
+                min={today}
+                style={{ width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', color: '#1e293b', boxSizing: 'border-box' }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Time</label>
               <select
                 value={preferredTime}
                 onChange={(e) => setPreferredTime(e.target.value)}
-                className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                style={{ width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', color: '#1e293b', backgroundColor: '#ffffff', boxSizing: 'border-box' }}
               >
                 <option value="">Select time</option>
                 <option value="07:00 AM">7:00 AM</option>
@@ -234,45 +264,61 @@ export default function ServiceTypePage() {
               </select>
             </div>
           </div>
-        </Card>
+        </div>
 
         {/* Address */}
-        <Card>
-          <h3 className="font-semibold text-foreground mb-3">Service Address</h3>
-          <div className="space-y-3">
-            <Input
-              label="Village/Town"
-              placeholder="Enter village or town"
-              value={address.village}
-              onChange={(e) => setAddress({ ...address, village: e.target.value })}
-            />
-            <Input
-              label="Street Address"
-              placeholder="House no., Street name, Landmark"
-              value={address.street}
-              onChange={(e) => setAddress({ ...address, street: e.target.value })}
-            />
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', margin: '0 0 12px' }}>Service Address</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div>
+              <label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Village/Town</label>
+              <input
+                type="text"
+                placeholder="Enter village or town"
+                value={address.village}
+                onChange={(e) => setAddress({ ...address, village: e.target.value })}
+                style={{ width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', color: '#1e293b', boxSizing: 'border-box' }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Street Address</label>
+              <input
+                type="text"
+                placeholder="House no., Street name, Landmark"
+                value={address.street}
+                onChange={(e) => setAddress({ ...address, street: e.target.value })}
+                style={{ width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', color: '#1e293b', boxSizing: 'border-box' }}
+              />
+            </div>
           </div>
-        </Card>
+        </div>
       </div>
 
       {/* Submit Button */}
-      <div className="fixed bottom-20 left-0 right-0 p-4 z-40">
-        <div className="max-w-lg mx-auto">
-          <Card className="mb-3">
-            <p className="text-sm text-muted text-center">
+      <div style={{ position: 'fixed', bottom: '80px', left: 0, right: 0, padding: '16px', zIndex: 40 }}>
+        <div style={{ maxWidth: '480px', margin: '0 auto' }}>
+          <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', marginBottom: '12px' }}>
+            <p style={{ fontSize: '13px', color: '#64748b', textAlign: 'center', margin: 0 }}>
               Our team will contact you to confirm the service and provide a quote.
             </p>
-          </Card>
-          <Button
-            className="w-full"
-            size="lg"
+          </div>
+          <button
             onClick={handleBookService}
-            isLoading={isLoading}
-            disabled={!selectedOption}
+            disabled={isLoading || !selectedOption}
+            style={{
+              width: '100%',
+              padding: '16px',
+              backgroundColor: isLoading || !selectedOption ? '#94a3b8' : '#059669',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: isLoading || !selectedOption ? 'not-allowed' : 'pointer'
+            }}
           >
-            Submit Request
-          </Button>
+            {isLoading ? 'Submitting...' : 'Submit Request'}
+          </button>
         </div>
       </div>
     </div>

@@ -2,13 +2,9 @@
 
 import { useState } from 'react';
 import { Save, Truck, Clock, Phone, MapPin } from 'lucide-react';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import { useToast } from '@/components/ui/Toast';
 
 export default function AdminSettingsPage() {
-  const { success } = useToast();
+  const [successMsg, setSuccessMsg] = useState('');
 
   const [settings, setSettings] = useState({
     deliveryCharges: {
@@ -31,250 +27,238 @@ export default function AdminSettingsPage() {
   });
 
   const handleSave = () => {
-    success('Settings saved successfully!');
+    setSuccessMsg('Settings saved successfully!');
+    setTimeout(() => setSuccessMsg(''), 3000);
   };
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div style={{ maxWidth: '768px' }}>
+      {/* Success Toast */}
+      {successMsg && (
+        <div style={{ position: 'fixed', top: '16px', right: '16px', backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '12px', padding: '12px 16px', zIndex: 100 }}>
+          <span style={{ fontSize: '14px', color: '#059669' }}>{successMsg}</span>
+        </div>
+      )}
+
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-        <p className="text-muted">Configure app settings</p>
+      <div style={{ marginBottom: '24px' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#1e293b', margin: 0 }}>Settings</h1>
+        <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>Configure app settings</p>
       </div>
 
       {/* Delivery Charges */}
-      <Card>
-        <div className="flex items-center gap-2 mb-4">
-          <Truck className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold text-foreground">Delivery Charges</h2>
+      <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+          <Truck style={{ width: '20px', height: '20px', color: '#059669' }} />
+          <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Delivery Charges</h2>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div>
-            <label className="text-sm text-muted">0-3 km</label>
-            <Input
-              type="number"
-              value={settings.deliveryCharges['0-3']}
-              onChange={(e) =>
-                setSettings({
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+          {['0-3', '3-6', '6-10', '10+'].map((key) => (
+            <div key={key}>
+              <label style={{ fontSize: '13px', color: '#64748b', display: 'block', marginBottom: '6px' }}>{key} km</label>
+              <input
+                type="number"
+                value={settings.deliveryCharges[key as keyof typeof settings.deliveryCharges]}
+                onChange={(e) => setSettings({
                   ...settings,
-                  deliveryCharges: { ...settings.deliveryCharges, '0-3': parseInt(e.target.value) },
-                })
-              }
-            />
-          </div>
-          <div>
-            <label className="text-sm text-muted">3-6 km</label>
-            <Input
-              type="number"
-              value={settings.deliveryCharges['3-6']}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  deliveryCharges: { ...settings.deliveryCharges, '3-6': parseInt(e.target.value) },
-                })
-              }
-            />
-          </div>
-          <div>
-            <label className="text-sm text-muted">6-10 km</label>
-            <Input
-              type="number"
-              value={settings.deliveryCharges['6-10']}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  deliveryCharges: { ...settings.deliveryCharges, '6-10': parseInt(e.target.value) },
-                })
-              }
-            />
-          </div>
-          <div>
-            <label className="text-sm text-muted">10+ km</label>
-            <Input
-              type="number"
-              value={settings.deliveryCharges['10+']}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  deliveryCharges: { ...settings.deliveryCharges, '10+': parseInt(e.target.value) },
-                })
-              }
-            />
-          </div>
+                  deliveryCharges: { ...settings.deliveryCharges, [key]: parseInt(e.target.value) || 0 },
+                })}
+                style={{ width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', boxSizing: 'border-box' }}
+              />
+            </div>
+          ))}
         </div>
-      </Card>
+      </div>
 
       {/* Transport Rates */}
-      <Card>
-        <div className="flex items-center gap-2 mb-4">
-          <MapPin className="w-5 h-5 text-secondary" />
-          <h2 className="text-lg font-semibold text-foreground">Transport Rates</h2>
+      <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+          <MapPin style={{ width: '20px', height: '20px', color: '#2563eb' }} />
+          <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Transport Rates</h2>
         </div>
-        <div className="space-y-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
-            <h3 className="font-medium text-foreground mb-2">Bike</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <h3 style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b', marginBottom: '12px' }}>Bike</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
               <div>
-                <label className="text-sm text-muted">Base Fare (₹)</label>
-                <Input
+                <label style={{ fontSize: '13px', color: '#64748b', display: 'block', marginBottom: '6px' }}>Base Fare (Rs)</label>
+                <input
                   type="number"
                   value={settings.transportRates.bike.baseFare}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      transportRates: {
-                        ...settings.transportRates,
-                        bike: { ...settings.transportRates.bike, baseFare: parseInt(e.target.value) },
-                      },
-                    })
-                  }
+                  onChange={(e) => setSettings({
+                    ...settings,
+                    transportRates: {
+                      ...settings.transportRates,
+                      bike: { ...settings.transportRates.bike, baseFare: parseInt(e.target.value) || 0 },
+                    },
+                  })}
+                  style={{ width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', boxSizing: 'border-box' }}
                 />
               </div>
               <div>
-                <label className="text-sm text-muted">Per KM (₹)</label>
-                <Input
+                <label style={{ fontSize: '13px', color: '#64748b', display: 'block', marginBottom: '6px' }}>Per KM (Rs)</label>
+                <input
                   type="number"
                   value={settings.transportRates.bike.perKm}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      transportRates: {
-                        ...settings.transportRates,
-                        bike: { ...settings.transportRates.bike, perKm: parseInt(e.target.value) },
-                      },
-                    })
-                  }
+                  onChange={(e) => setSettings({
+                    ...settings,
+                    transportRates: {
+                      ...settings.transportRates,
+                      bike: { ...settings.transportRates.bike, perKm: parseInt(e.target.value) || 0 },
+                    },
+                  })}
+                  style={{ width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', boxSizing: 'border-box' }}
                 />
               </div>
             </div>
           </div>
           <div>
-            <h3 className="font-medium text-foreground mb-2">Auto</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <h3 style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b', marginBottom: '12px' }}>Auto</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
               <div>
-                <label className="text-sm text-muted">Base Fare (₹)</label>
-                <Input
+                <label style={{ fontSize: '13px', color: '#64748b', display: 'block', marginBottom: '6px' }}>Base Fare (Rs)</label>
+                <input
                   type="number"
                   value={settings.transportRates.auto.baseFare}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      transportRates: {
-                        ...settings.transportRates,
-                        auto: { ...settings.transportRates.auto, baseFare: parseInt(e.target.value) },
-                      },
-                    })
-                  }
+                  onChange={(e) => setSettings({
+                    ...settings,
+                    transportRates: {
+                      ...settings.transportRates,
+                      auto: { ...settings.transportRates.auto, baseFare: parseInt(e.target.value) || 0 },
+                    },
+                  })}
+                  style={{ width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', boxSizing: 'border-box' }}
                 />
               </div>
               <div>
-                <label className="text-sm text-muted">Per KM (₹)</label>
-                <Input
+                <label style={{ fontSize: '13px', color: '#64748b', display: 'block', marginBottom: '6px' }}>Per KM (Rs)</label>
+                <input
                   type="number"
                   value={settings.transportRates.auto.perKm}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      transportRates: {
-                        ...settings.transportRates,
-                        auto: { ...settings.transportRates.auto, perKm: parseInt(e.target.value) },
-                      },
-                    })
-                  }
+                  onChange={(e) => setSettings({
+                    ...settings,
+                    transportRates: {
+                      ...settings.transportRates,
+                      auto: { ...settings.transportRates.auto, perKm: parseInt(e.target.value) || 0 },
+                    },
+                  })}
+                  style={{ width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', boxSizing: 'border-box' }}
                 />
               </div>
             </div>
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* Working Hours */}
-      <Card>
-        <div className="flex items-center gap-2 mb-4">
-          <Clock className="w-5 h-5 text-warning" />
-          <h2 className="text-lg font-semibold text-foreground">Working Hours</h2>
+      <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+          <Clock style={{ width: '20px', height: '20px', color: '#f59e0b' }} />
+          <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Working Hours</h2>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
           <div>
-            <label className="text-sm text-muted">Start Time</label>
-            <Input
+            <label style={{ fontSize: '13px', color: '#64748b', display: 'block', marginBottom: '6px' }}>Start Time</label>
+            <input
               type="time"
               value={settings.workingHours.start}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  workingHours: { ...settings.workingHours, start: e.target.value },
-                })
-              }
+              onChange={(e) => setSettings({
+                ...settings,
+                workingHours: { ...settings.workingHours, start: e.target.value },
+              })}
+              style={{ width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', boxSizing: 'border-box' }}
             />
           </div>
           <div>
-            <label className="text-sm text-muted">End Time</label>
-            <Input
+            <label style={{ fontSize: '13px', color: '#64748b', display: 'block', marginBottom: '6px' }}>End Time</label>
+            <input
               type="time"
               value={settings.workingHours.end}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  workingHours: { ...settings.workingHours, end: e.target.value },
-                })
-              }
+              onChange={(e) => setSettings({
+                ...settings,
+                workingHours: { ...settings.workingHours, end: e.target.value },
+              })}
+              style={{ width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', boxSizing: 'border-box' }}
             />
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* Contact Numbers */}
-      <Card>
-        <div className="flex items-center gap-2 mb-4">
-          <Phone className="w-5 h-5 text-success" />
-          <h2 className="text-lg font-semibold text-foreground">Contact Numbers</h2>
+      <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+          <Phone style={{ width: '20px', height: '20px', color: '#16a34a' }} />
+          <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Contact Numbers</h2>
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <Input
-            label="Phone Number"
-            value={settings.contactNumber}
-            onChange={(e) => setSettings({ ...settings, contactNumber: e.target.value })}
-          />
-          <Input
-            label="WhatsApp Number"
-            value={settings.whatsappNumber}
-            onChange={(e) => setSettings({ ...settings, whatsappNumber: e.target.value })}
-          />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
+          <div>
+            <label style={{ fontSize: '13px', color: '#64748b', display: 'block', marginBottom: '6px' }}>Phone Number</label>
+            <input
+              type="text"
+              value={settings.contactNumber}
+              onChange={(e) => setSettings({ ...settings, contactNumber: e.target.value })}
+              style={{ width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', boxSizing: 'border-box' }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: '13px', color: '#64748b', display: 'block', marginBottom: '6px' }}>WhatsApp Number</label>
+            <input
+              type="text"
+              value={settings.whatsappNumber}
+              onChange={(e) => setSettings({ ...settings, whatsappNumber: e.target.value })}
+              style={{ width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', boxSizing: 'border-box' }}
+            />
+          </div>
         </div>
-      </Card>
+      </div>
 
       {/* Maintenance Mode */}
-      <Card>
-        <div className="flex items-center justify-between">
+      <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <h3 className="font-semibold text-foreground">Maintenance Mode</h3>
-            <p className="text-sm text-muted">
+            <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Maintenance Mode</h3>
+            <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>
               Temporarily disable the app for maintenance
             </p>
           </div>
           <button
-            onClick={() =>
-              setSettings({ ...settings, maintenanceMode: !settings.maintenanceMode })
-            }
-            className={`relative w-14 h-7 rounded-full transition-colors ${
-              settings.maintenanceMode ? 'bg-danger' : 'bg-border'
-            }`}
+            onClick={() => setSettings({ ...settings, maintenanceMode: !settings.maintenanceMode })}
+            style={{
+              position: 'relative',
+              width: '56px',
+              height: '28px',
+              borderRadius: '14px',
+              border: 'none',
+              cursor: 'pointer',
+              backgroundColor: settings.maintenanceMode ? '#dc2626' : '#e2e8f0',
+              transition: 'background-color 0.2s'
+            }}
           >
             <span
-              className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-all ${
-                settings.maintenanceMode ? 'right-1' : 'left-1'
-              }`}
+              style={{
+                position: 'absolute',
+                top: '4px',
+                width: '20px',
+                height: '20px',
+                borderRadius: '50%',
+                backgroundColor: '#ffffff',
+                transition: 'left 0.2s, right 0.2s',
+                left: settings.maintenanceMode ? 'auto' : '4px',
+                right: settings.maintenanceMode ? '4px' : 'auto'
+              }}
             />
           </button>
         </div>
-      </Card>
+      </div>
 
       {/* Save Button */}
-      <Button className="w-full" size="lg" onClick={handleSave}>
-        <Save className="w-5 h-5" />
+      <button
+        onClick={handleSave}
+        style={{ width: '100%', padding: '16px', backgroundColor: '#059669', color: '#ffffff', border: 'none', borderRadius: '12px', fontSize: '16px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+      >
+        <Save style={{ width: '20px', height: '20px' }} />
         Save Settings
-      </Button>
+      </button>
     </div>
   );
 }

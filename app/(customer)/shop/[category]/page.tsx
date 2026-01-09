@@ -4,7 +4,6 @@ import { useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, ShoppingCart } from 'lucide-react';
-import Card from '@/components/ui/Card';
 import ProductCard from '@/components/shop/ProductCard';
 import CategoryList from '@/components/shop/CategoryList';
 import { CATEGORIES, getProductsByCategory } from '@/constants/categories';
@@ -24,10 +23,10 @@ export default function CategoryPage() {
 
   if (!category) {
     return (
-      <div className="px-4 py-8 text-center">
-        <span className="text-4xl">❓</span>
-        <p className="text-muted mt-2">Category not found</p>
-        <Link href="/shop" className="text-primary mt-4 inline-block">
+      <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+        <span style={{ fontSize: '32px' }}>❓</span>
+        <p style={{ color: '#64748b', marginTop: '8px' }}>Category not found</p>
+        <Link href="/shop" style={{ color: '#059669', marginTop: '16px', display: 'inline-block', textDecoration: 'none' }}>
           ← Back to Shop
         </Link>
       </div>
@@ -35,59 +34,85 @@ export default function CategoryPage() {
   }
 
   return (
-    <div className="px-4 py-4 pb-32">
+    <div style={{ padding: '16px', paddingBottom: '128px' }}>
       {/* Header */}
-      <div className="flex items-center gap-3 mb-4">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
         <Link
           href="/shop"
-          className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center hover:border-primary/50 transition-colors"
+          style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            backgroundColor: '#ffffff',
+            border: '1px solid #e2e8f0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            textDecoration: 'none'
+          }}
         >
-          <ArrowLeft className="w-5 h-5 text-foreground" />
+          <ArrowLeft style={{ width: '20px', height: '20px', color: '#1e293b' }} />
         </Link>
         <div>
-          <h1 className="text-xl font-bold text-foreground">
+          <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
             {category.icon} {category.name}
           </h1>
-          <p className="text-sm text-muted">{products.length} products</p>
+          <p style={{ fontSize: '14px', color: '#64748b', margin: '2px 0 0' }}>{products.length} products</p>
         </div>
       </div>
 
       {/* Categories */}
-      <div className="-mx-4 px-4 mb-4">
+      <div style={{ marginLeft: '-16px', marginRight: '-16px', paddingLeft: '16px', paddingRight: '16px', marginBottom: '16px' }}>
         <CategoryList />
       </div>
 
       {/* Products Grid */}
       {products.length > 0 ? (
-        <div className="grid grid-cols-2 gap-3">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
           {products.map((product, index) => (
             <ProductCard key={`${product.name}-${index}`} product={product} />
           ))}
         </div>
       ) : (
-        <Card className="text-center py-8">
-          <span className="text-4xl">📦</span>
-          <p className="text-muted mt-2">No products in this category</p>
-        </Card>
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '32px 16px', textAlign: 'center' }}>
+          <span style={{ fontSize: '32px' }}>📦</span>
+          <p style={{ color: '#64748b', marginTop: '8px' }}>No products in this category</p>
+        </div>
       )}
 
       {/* Cart Summary Bar */}
       {cartCount > 0 && (
-        <div className="fixed bottom-20 left-0 right-0 p-4 z-40">
-          <div className="max-w-lg mx-auto">
-            <Link href="/cart">
-              <Card className="bg-primary shadow-lg shadow-primary/25 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                    <ShoppingCart className="w-5 h-5 text-white" />
+        <div style={{ position: 'fixed', bottom: '80px', left: 0, right: 0, padding: '16px', zIndex: 40 }}>
+          <div style={{ maxWidth: '480px', margin: '0 auto' }}>
+            <Link href="/cart" style={{ textDecoration: 'none' }}>
+              <div style={{
+                backgroundColor: '#059669',
+                borderRadius: '12px',
+                padding: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                boxShadow: '0 4px 20px rgba(5, 150, 105, 0.25)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    backgroundColor: 'rgba(255,255,255,0.2)',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <ShoppingCart style={{ width: '20px', height: '20px', color: '#ffffff' }} />
                   </div>
                   <div>
-                    <p className="text-white font-medium">{cartCount} items</p>
-                    <p className="text-white/80 text-sm">{formatPrice(cartTotal)}</p>
+                    <p style={{ color: '#ffffff', fontWeight: '500', margin: 0 }}>{cartCount} items</p>
+                    <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', margin: '2px 0 0' }}>{formatPrice(cartTotal)}</p>
                   </div>
                 </div>
-                <span className="text-white font-medium">View Cart →</span>
-              </Card>
+                <span style={{ color: '#ffffff', fontWeight: '500' }}>View Cart →</span>
+              </div>
             </Link>
           </div>
         </div>

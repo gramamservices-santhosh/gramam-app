@@ -3,31 +3,28 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
-import Button from '@/components/ui/Button';
 import { useAuthStore } from '@/store/authStore';
 import { verifyOTP, sendOTP, setupRecaptcha, db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
-import { useToast } from '@/components/ui/Toast';
 import { User } from '@/types';
 
 export default function VerifyOTPPage() {
   const router = useRouter();
   const { phoneNumber, setUser } = useAuthStore();
-  const { success, error: showError } = useToast();
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(30);
+  const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Redirect if no phone number
   useEffect(() => {
     if (!phoneNumber) {
       router.replace('/login');
     }
   }, [phoneNumber, router]);
 
-  // Countdown timer for resend
   useEffect(() => {
     if (resendTimer > 0) {
       const timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
@@ -35,7 +32,6 @@ export default function VerifyOTPPage() {
     }
   }, [resendTimer]);
 
-  // Focus first input on mount
   useEffect(() => {
     inputRefs.current[0]?.focus();
   }, []);
@@ -47,7 +43,6 @@ export default function VerifyOTPPage() {
     newOtp[index] = value.slice(-1);
     setOtp(newOtp);
 
-    // Auto-focus next input
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
@@ -70,7 +65,6 @@ export default function VerifyOTPPage() {
     });
     setOtp(newOtp);
 
-    // Focus last filled input or last input
     const lastIndex = Math.min(pastedData.length - 1, 5);
     inputRefs.current[lastIndex]?.focus();
   };
@@ -82,10 +76,12 @@ export default function VerifyOTPPage() {
       setupRecaptcha('recaptcha-container');
       await sendOTP(phoneNumber);
       setResendTimer(30);
-      success('OTP sent successfully!');
+      setSuccessMsg('OTP sent successfully!');
+      setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err) {
       console.error('Error resending OTP:', err);
-      showError('Failed to resend OTP. Please try again.');
+      setError('Failed to resend OTP. Please try again.');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -94,26 +90,22 @@ export default function VerifyOTPPage() {
 
     const otpString = otp.join('');
     if (otpString.length !== 6) {
-      showError('Please enter the complete 6-digit OTP');
+      setError('Please enter the complete 6-digit OTP');
+      setTimeout(() => setError(''), 3000);
       return;
     }
 
     setIsLoading(true);
 
     try {
-      // Verify OTP
       const firebaseUser = await verifyOTP(otpString);
-
-      // Check if user exists in Firestore
       const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
 
       let user: User;
 
       if (userDoc.exists()) {
-        // Existing user
         user = { id: userDoc.id, ...userDoc.data() } as User;
       } else {
-        // New user - create profile
         user = {
           id: firebaseUser.uid,
           phone: `+91${phoneNumber}`,
@@ -129,11 +121,9 @@ export default function VerifyOTPPage() {
         await setDoc(doc(db, 'users', firebaseUser.uid), user);
       }
 
-      // Update auth store
       setUser(user);
-      success('Login successful!');
+      setSuccessMsg('Login successful!');
 
-      // Navigate to home or profile setup
       if (!user.name || !user.village) {
         router.replace('/profile?setup=true');
       } else {
@@ -141,38 +131,53 @@ export default function VerifyOTPPage() {
       }
     } catch (err) {
       console.error('Error verifying OTP:', err);
-      showError('Invalid OTP. Please try again.');
+      setError('Invalid OTP. Please try again.');
+      setTimeout(() => setError(''), 3000);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col px-6 py-8">
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', padding: '32px 24px', backgroundColor: '#f8fafc' }}>
+      {/* Error Toast */}
+      {error && (
+        <div style={{ position: 'fixed', top: '16px', left: '16px', right: '16px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '12px 16px', zIndex: 100 }}>
+          <span style={{ fontSize: '14px', color: '#dc2626' }}>{error}</span>
+        </div>
+      )}
+
+      {/* Success Toast */}
+      {successMsg && (
+        <div style={{ position: 'fixed', top: '16px', left: '16px', right: '16px', backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '12px', padding: '12px 16px', zIndex: 100 }}>
+          <span style={{ fontSize: '14px', color: '#059669' }}>{successMsg}</span>
+        </div>
+      )}
+
       {/* Back Button */}
       <button
         onClick={() => router.back()}
-        className="flex items-center gap-2 text-muted hover:text-foreground transition-colors"
+        style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px' }}
       >
-        <ArrowLeft className="w-5 h-5" />
+        <ArrowLeft style={{ width: '20px', height: '20px' }} />
         <span>Back</span>
       </button>
 
       {/* Content */}
-      <div className="flex-1 flex flex-col items-center justify-center">
-        <div className="w-full max-w-sm">
-          <div className="text-center mb-8">
-            <div className="text-5xl mb-4">📱</div>
-            <h1 className="text-2xl font-bold text-foreground">Verify OTP</h1>
-            <p className="text-muted mt-2">
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: '100%', maxWidth: '384px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}>📱</div>
+            <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#1e293b', margin: 0 }}>Verify OTP</h1>
+            <p style={{ color: '#64748b', marginTop: '8px', fontSize: '14px' }}>
               Enter the 6-digit code sent to{' '}
-              <span className="text-foreground font-medium">+91 {phoneNumber}</span>
+              <span style={{ color: '#1e293b', fontWeight: '500' }}>+91 {phoneNumber}</span>
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit}>
             {/* OTP Inputs */}
-            <div className="flex justify-center gap-2">
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '24px' }}>
               {otp.map((digit, index) => (
                 <input
                   key={index}
@@ -186,37 +191,61 @@ export default function VerifyOTPPage() {
                   onChange={(e) => handleChange(index, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(index, e)}
                   onPaste={handlePaste}
-                  className="w-12 h-14 text-center text-xl font-bold bg-card border-2 border-border rounded-xl text-foreground focus:outline-none focus:border-primary transition-colors"
+                  style={{
+                    width: '48px',
+                    height: '56px',
+                    textAlign: 'center',
+                    fontSize: '20px',
+                    fontWeight: '700',
+                    backgroundColor: '#ffffff',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '12px',
+                    color: '#1e293b',
+                    outline: 'none'
+                  }}
                 />
               ))}
             </div>
 
             {/* Resend OTP */}
-            <div className="text-center">
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
               {resendTimer > 0 ? (
-                <p className="text-muted text-sm">
-                  Resend OTP in <span className="text-primary font-medium">{resendTimer}s</span>
+                <p style={{ color: '#64748b', fontSize: '14px', margin: 0 }}>
+                  Resend OTP in <span style={{ color: '#059669', fontWeight: '500' }}>{resendTimer}s</span>
                 </p>
               ) : (
                 <button
                   type="button"
                   onClick={handleResendOTP}
-                  className="text-primary text-sm font-medium hover:underline"
+                  style={{ color: '#059669', fontSize: '14px', fontWeight: '500', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
                 >
                   Resend OTP
                 </button>
               )}
             </div>
 
-            <Button
+            <button
               type="submit"
-              className="w-full"
-              size="lg"
-              isLoading={isLoading}
-              rightIcon={<ArrowRight className="w-5 h-5" />}
+              disabled={isLoading}
+              style={{
+                width: '100%',
+                padding: '16px',
+                backgroundColor: isLoading ? '#94a3b8' : '#059669',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
             >
-              Verify & Continue
-            </Button>
+              {isLoading ? 'Verifying...' : 'Verify & Continue'}
+              {!isLoading && <ArrowRight style={{ width: '20px', height: '20px' }} />}
+            </button>
           </form>
 
           {/* reCAPTCHA container */}

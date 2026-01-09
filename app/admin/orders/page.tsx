@@ -1,16 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Filter, Eye, CheckCircle, XCircle, Truck, Clock } from 'lucide-react';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import Badge from '@/components/ui/Badge';
+import { Search, Eye, Clock } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, where, Timestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { Order } from '@/types';
 import { formatPrice, formatDate } from '@/lib/utils';
-import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
 const STATUS_OPTIONS = [
@@ -26,9 +21,19 @@ const STATUS_OPTIONS = [
 const TYPE_OPTIONS = [
   { value: 'all', label: 'All Types' },
   { value: 'shopping', label: 'Shopping' },
-  { value: 'ride', label: 'Ride' },
+  { value: 'transport', label: 'Transport' },
   { value: 'service', label: 'Service' },
 ];
+
+const statusColors: Record<string, { bg: string; text: string }> = {
+  pending: { bg: '#fef3c7', text: '#d97706' },
+  confirmed: { bg: '#dbeafe', text: '#2563eb' },
+  preparing: { bg: '#e0e7ff', text: '#4f46e5' },
+  out_for_delivery: { bg: '#dbeafe', text: '#2563eb' },
+  delivered: { bg: '#dcfce7', text: '#16a34a' },
+  completed: { bg: '#dcfce7', text: '#16a34a' },
+  cancelled: { bg: '#fee2e2', text: '#dc2626' },
+};
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -57,153 +62,134 @@ export default function AdminOrdersPage() {
     if (statusFilter !== 'all' && order.status !== statusFilter) return false;
     if (typeFilter !== 'all' && order.type !== typeFilter) return false;
     if (searchQuery) {
-      const query = searchQuery.toLowerCase();
+      const q = searchQuery.toLowerCase();
       return (
-        order.id.toLowerCase().includes(query) ||
-        order.userName?.toLowerCase().includes(query) ||
-        order.userPhone?.includes(query)
+        order.id.toLowerCase().includes(q) ||
+        order.userName?.toLowerCase().includes(q) ||
+        order.userPhone?.includes(q)
       );
     }
     return true;
   });
 
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, 'warning' | 'primary' | 'secondary' | 'success' | 'danger'> = {
-      pending: 'warning',
-      confirmed: 'primary',
-      preparing: 'secondary',
-      out_for_delivery: 'primary',
-      delivered: 'success',
-      cancelled: 'danger',
-    };
-    return <Badge variant={variants[status] || 'warning'}>{status.replace('_', ' ')}</Badge>;
-  };
-
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'shopping':
-        return '🛒';
-      case 'ride':
-        return '🏍️';
-      case 'service':
-        return '🔧';
-      default:
-        return '📦';
+      case 'shopping': return '🛒';
+      case 'transport': return '🏍️';
+      case 'service': return '🔧';
+      default: return '📦';
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div>
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Orders</h1>
-        <p className="text-muted">Manage all customer orders</p>
+      <div style={{ marginBottom: '24px' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#1e293b', margin: 0 }}>Orders</h1>
+        <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>Manage all customer orders</p>
       </div>
 
       {/* Filters */}
-      <Card>
-        <div className="flex flex-col lg:flex-row gap-4">
-          <div className="flex-1">
-            <Input
+      <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
+          <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
+            <Search style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', width: '20px', height: '20px', color: '#94a3b8' }} />
+            <input
               placeholder="Search by order ID, customer name or phone..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              leftIcon={<Search className="w-5 h-5" />}
+              style={{ width: '100%', padding: '12px 12px 12px 44px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', boxSizing: 'border-box' }}
             />
           </div>
-          <div className="flex gap-2">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-card border border-border rounded-xl px-4 py-3 text-foreground"
-            >
-              {STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="bg-card border border-border rounded-xl px-4 py-3 text-foreground"
-            >
-              {TYPE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={{ padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', backgroundColor: '#ffffff' }}
+          >
+            {STATUS_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            style={{ padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', backgroundColor: '#ffffff' }}
+          >
+            {TYPE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
         </div>
-      </Card>
+      </div>
 
       {/* Orders Table */}
-      <Card padding="none">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-border/30">
-              <tr>
-                <th className="text-left py-4 px-4 text-sm font-medium text-muted">Order</th>
-                <th className="text-left py-4 px-4 text-sm font-medium text-muted">Customer</th>
-                <th className="text-left py-4 px-4 text-sm font-medium text-muted">Type</th>
-                <th className="text-left py-4 px-4 text-sm font-medium text-muted">Amount</th>
-                <th className="text-left py-4 px-4 text-sm font-medium text-muted">Status</th>
-                <th className="text-left py-4 px-4 text-sm font-medium text-muted">Date</th>
-                <th className="text-left py-4 px-4 text-sm font-medium text-muted">Actions</th>
+      <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                <th style={{ textAlign: 'left', padding: '16px', fontSize: '13px', fontWeight: '500', color: '#64748b' }}>Order</th>
+                <th style={{ textAlign: 'left', padding: '16px', fontSize: '13px', fontWeight: '500', color: '#64748b' }}>Customer</th>
+                <th style={{ textAlign: 'left', padding: '16px', fontSize: '13px', fontWeight: '500', color: '#64748b' }}>Type</th>
+                <th style={{ textAlign: 'left', padding: '16px', fontSize: '13px', fontWeight: '500', color: '#64748b' }}>Amount</th>
+                <th style={{ textAlign: 'left', padding: '16px', fontSize: '13px', fontWeight: '500', color: '#64748b' }}>Status</th>
+                <th style={{ textAlign: 'left', padding: '16px', fontSize: '13px', fontWeight: '500', color: '#64748b' }}>Date</th>
+                <th style={{ textAlign: 'left', padding: '16px', fontSize: '13px', fontWeight: '500', color: '#64748b' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredOrders.map((order) => (
-                <tr
-                  key={order.id}
-                  className="border-b border-border hover:bg-border/20 transition-colors"
-                >
-                  <td className="py-4 px-4">
-                    <p className="font-medium text-foreground">#{order.id.slice(-6)}</p>
-                  </td>
-                  <td className="py-4 px-4">
-                    <p className="font-medium text-foreground">{order.userName || 'N/A'}</p>
-                    <p className="text-sm text-muted">{order.userPhone}</p>
-                  </td>
-                  <td className="py-4 px-4">
-                    <span className="text-xl">{getTypeIcon(order.type)}</span>
-                  </td>
-                  <td className="py-4 px-4 font-medium text-primary">
-                    {formatPrice(order.totalAmount)}
-                  </td>
-                  <td className="py-4 px-4">{getStatusBadge(order.status)}</td>
-                  <td className="py-4 px-4 text-sm text-muted">
-                    {formatDate(order.createdAt)}
-                  </td>
-                  <td className="py-4 px-4">
-                    <Link href={`/admin/orders/${order.id}`}>
-                      <Button variant="ghost" size="sm">
-                        <Eye className="w-4 h-4" />
-                        View
-                      </Button>
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+              {filteredOrders.map((order) => {
+                const statusColor = statusColors[order.status] || { bg: '#f1f5f9', text: '#64748b' };
+                return (
+                  <tr key={order.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '16px' }}>
+                      <p style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b', margin: 0 }}>#{order.id.slice(-6)}</p>
+                    </td>
+                    <td style={{ padding: '16px' }}>
+                      <p style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b', margin: 0 }}>{order.userName || 'N/A'}</p>
+                      <p style={{ fontSize: '13px', color: '#64748b', margin: '2px 0 0' }}>{order.userPhone}</p>
+                    </td>
+                    <td style={{ padding: '16px' }}>
+                      <span style={{ fontSize: '20px' }}>{getTypeIcon(order.type)}</span>
+                    </td>
+                    <td style={{ padding: '16px', fontWeight: '500', color: '#059669' }}>
+                      {formatPrice(order.totalAmount)}
+                    </td>
+                    <td style={{ padding: '16px' }}>
+                      <span style={{ padding: '4px 12px', backgroundColor: statusColor.bg, color: statusColor.text, borderRadius: '20px', fontSize: '12px', fontWeight: '500', textTransform: 'capitalize' }}>
+                        {order.status.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td style={{ padding: '16px', fontSize: '13px', color: '#64748b' }}>
+                      {formatDate(order.createdAt)}
+                    </td>
+                    <td style={{ padding: '16px' }}>
+                      <Link href={`/admin/orders/${order.id}`} style={{ textDecoration: 'none' }}>
+                        <button style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', backgroundColor: '#f1f5f9', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '500', color: '#1e293b', cursor: 'pointer' }}>
+                          <Eye style={{ width: '16px', height: '16px' }} />
+                          View
+                        </button>
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
 
         {filteredOrders.length === 0 && (
-          <div className="text-center py-12">
-            <Clock className="w-12 h-12 text-muted mx-auto mb-3" />
-            <p className="text-foreground font-medium">No orders found</p>
-            <p className="text-sm text-muted mt-1">
-              {searchQuery || statusFilter !== 'all' || typeFilter !== 'all'
-                ? 'Try adjusting your filters'
-                : 'Orders will appear here'}
+          <div style={{ textAlign: 'center', padding: '48px' }}>
+            <Clock style={{ width: '48px', height: '48px', color: '#94a3b8', margin: '0 auto 12px' }} />
+            <p style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b', margin: 0 }}>No orders found</p>
+            <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>
+              {searchQuery || statusFilter !== 'all' || typeFilter !== 'all' ? 'Try adjusting your filters' : 'Orders will appear here'}
             </p>
           </div>
         )}
-      </Card>
+      </div>
 
-      <p className="text-sm text-muted text-center">
+      <p style={{ fontSize: '13px', color: '#64748b', textAlign: 'center', marginTop: '16px' }}>
         Showing {filteredOrders.length} of {orders.length} orders
       </p>
     </div>

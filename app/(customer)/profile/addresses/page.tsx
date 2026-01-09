@@ -2,26 +2,21 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Plus, MapPin, Trash2, Edit2, Check } from 'lucide-react';
-import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
-import Input from '@/components/ui/Input';
-import Modal from '@/components/ui/Modal';
+import { ArrowLeft, Plus, MapPin, Trash2, Edit2, Check, X } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
-import { useToast } from '@/components/ui/Toast';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, Timestamp } from 'firebase/firestore';
 import { Address } from '@/types';
-import { cn } from '@/lib/utils';
 
 export default function AddressesPage() {
   const router = useRouter();
   const { user, setUser } = useAuthStore();
-  const { success, error: showError } = useToast();
 
   const [showModal, setShowModal] = useState(false);
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [formData, setFormData] = useState({
     label: '',
     village: '',
@@ -49,7 +44,8 @@ export default function AddressesPage() {
     if (!user) return;
 
     if (!formData.label.trim() || !formData.village.trim() || !formData.street.trim()) {
-      showError('Please fill all required fields');
+      setError('Please fill all required fields');
+      setTimeout(() => setError(''), 3000);
       return;
     }
 
@@ -59,13 +55,11 @@ export default function AddressesPage() {
       const addresses = [...(user.addresses || [])];
 
       if (editingAddress) {
-        // Update existing
         const index = addresses.findIndex((a) => a.id === editingAddress.id);
         if (index !== -1) {
           addresses[index] = { ...editingAddress, ...formData };
         }
       } else {
-        // Add new
         const newAddress: Address = {
           id: `addr_${Date.now()}`,
           ...formData,
@@ -81,11 +75,13 @@ export default function AddressesPage() {
       });
 
       setUser({ ...user, addresses });
-      success(editingAddress ? 'Address updated!' : 'Address added!');
+      setSuccessMsg(editingAddress ? 'Address updated!' : 'Address added!');
+      setTimeout(() => setSuccessMsg(''), 3000);
       setShowModal(false);
     } catch (err) {
       console.error('Error saving address:', err);
-      showError('Failed to save address');
+      setError('Failed to save address');
+      setTimeout(() => setError(''), 3000);
     } finally {
       setIsLoading(false);
     }
@@ -97,7 +93,6 @@ export default function AddressesPage() {
     try {
       const addresses = user.addresses.filter((a) => a.id !== addressId);
 
-      // If deleted was default, make first one default
       if (addresses.length > 0 && !addresses.some((a) => a.isDefault)) {
         addresses[0].isDefault = true;
       }
@@ -109,10 +104,12 @@ export default function AddressesPage() {
       });
 
       setUser({ ...user, addresses });
-      success('Address deleted');
+      setSuccessMsg('Address deleted');
+      setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err) {
       console.error('Error deleting address:', err);
-      showError('Failed to delete address');
+      setError('Failed to delete address');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -132,10 +129,12 @@ export default function AddressesPage() {
       });
 
       setUser({ ...user, addresses });
-      success('Default address updated');
+      setSuccessMsg('Default address updated');
+      setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err) {
       console.error('Error setting default:', err);
-      showError('Failed to update default address');
+      setError('Failed to update default address');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -144,145 +143,199 @@ export default function AddressesPage() {
   }
 
   return (
-    <div className="px-4 py-4 pb-24">
+    <div style={{ padding: '16px', paddingBottom: '96px' }}>
+      {/* Error Toast */}
+      {error && (
+        <div style={{ position: 'fixed', top: '16px', left: '16px', right: '16px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '12px 16px', zIndex: 100 }}>
+          <span style={{ fontSize: '14px', color: '#dc2626' }}>{error}</span>
+        </div>
+      )}
+
+      {/* Success Toast */}
+      {successMsg && (
+        <div style={{ position: 'fixed', top: '16px', left: '16px', right: '16px', backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '12px', padding: '12px 16px', zIndex: 100 }}>
+          <span style={{ fontSize: '14px', color: '#059669' }}>{successMsg}</span>
+        </div>
+      )}
+
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
         <button
           onClick={() => router.back()}
-          className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center hover:border-primary/50 transition-colors"
+          style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
         >
-          <ArrowLeft className="w-5 h-5 text-foreground" />
+          <ArrowLeft style={{ width: '20px', height: '20px', color: '#1e293b' }} />
         </button>
-        <div className="flex-1">
-          <h1 className="text-xl font-bold text-foreground">Saved Addresses</h1>
-          <p className="text-sm text-muted">
+        <div style={{ flex: 1 }}>
+          <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b', margin: 0 }}>Saved Addresses</h1>
+          <p style={{ fontSize: '14px', color: '#64748b', margin: '2px 0 0' }}>
             {user.addresses?.length || 0} addresses
           </p>
         </div>
         <button
           onClick={() => handleOpenModal()}
-          className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white"
+          style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#059669', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
         >
-          <Plus className="w-5 h-5" />
+          <Plus style={{ width: '20px', height: '20px', color: '#ffffff' }} />
         </button>
       </div>
 
       {/* Addresses List */}
-      <div className="space-y-3">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {user.addresses && user.addresses.length > 0 ? (
           user.addresses.map((address) => (
-            <Card key={address.id}>
-              <div className="flex items-start gap-3">
-                <div
-                  className={cn(
-                    'w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0',
-                    address.isDefault ? 'bg-primary/20' : 'bg-border/50'
-                  )}
-                >
-                  <MapPin
-                    className={cn(
-                      'w-5 h-5',
-                      address.isDefault ? 'text-primary' : 'text-muted'
-                    )}
-                  />
+            <div key={address.id} style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  backgroundColor: address.isDefault ? '#ecfdf5' : '#f1f5f9',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <MapPin style={{ width: '20px', height: '20px', color: address.isDefault ? '#059669' : '#64748b' }} />
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium text-foreground">{address.label}</p>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <p style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b', margin: 0 }}>{address.label}</p>
                     {address.isDefault && (
-                      <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
+                      <span style={{ fontSize: '11px', backgroundColor: '#ecfdf5', color: '#059669', padding: '2px 8px', borderRadius: '20px' }}>
                         Default
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-muted mt-0.5">
+                  <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>
                     {address.street}, {address.village}
                   </p>
                   {address.landmark && (
-                    <p className="text-xs text-muted">Near {address.landmark}</p>
+                    <p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>Near {address.landmark}</p>
                   )}
 
-                  <div className="flex gap-2 mt-3">
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
                     {!address.isDefault && (
                       <button
                         onClick={() => handleSetDefault(address.id)}
-                        className="text-xs text-secondary font-medium flex items-center gap-1"
+                        style={{ fontSize: '12px', color: '#2563eb', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                       >
-                        <Check className="w-3 h-3" />
+                        <Check style={{ width: '12px', height: '12px' }} />
                         Set Default
                       </button>
                     )}
                     <button
                       onClick={() => handleOpenModal(address)}
-                      className="text-xs text-primary font-medium flex items-center gap-1"
+                      style={{ fontSize: '12px', color: '#059669', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                     >
-                      <Edit2 className="w-3 h-3" />
+                      <Edit2 style={{ width: '12px', height: '12px' }} />
                       Edit
                     </button>
                     <button
                       onClick={() => handleDelete(address.id)}
-                      className="text-xs text-danger font-medium flex items-center gap-1"
+                      style={{ fontSize: '12px', color: '#dc2626', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <Trash2 style={{ width: '12px', height: '12px' }} />
                       Delete
                     </button>
                   </div>
                 </div>
               </div>
-            </Card>
+            </div>
           ))
         ) : (
-          <Card className="text-center py-8">
-            <MapPin className="w-12 h-12 text-muted mx-auto mb-3" />
-            <p className="text-foreground font-medium">No Saved Addresses</p>
-            <p className="text-sm text-muted mt-1">
+          <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '32px 16px', textAlign: 'center' }}>
+            <MapPin style={{ width: '48px', height: '48px', color: '#94a3b8', margin: '0 auto 12px' }} />
+            <p style={{ fontSize: '16px', fontWeight: '500', color: '#1e293b', margin: 0 }}>No Saved Addresses</p>
+            <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>
               Add an address for faster checkout
             </p>
-            <Button onClick={() => handleOpenModal()} className="mt-4">
-              <Plus className="w-5 h-5" />
+            <button
+              onClick={() => handleOpenModal()}
+              style={{ marginTop: '16px', padding: '12px 24px', backgroundColor: '#059669', color: '#ffffff', border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+            >
+              <Plus style={{ width: '20px', height: '20px' }} />
               Add Address
-            </Button>
-          </Card>
+            </button>
+          </div>
         )}
       </div>
 
       {/* Add/Edit Modal */}
-      <Modal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        title={editingAddress ? 'Edit Address' : 'Add Address'}
-      >
-        <div className="space-y-4">
-          <Input
-            label="Address Label"
-            placeholder="Home, Office, etc."
-            value={formData.label}
-            onChange={(e) => setFormData({ ...formData, label: e.target.value })}
-          />
-          <Input
-            label="Village/Town"
-            placeholder="Enter village or town"
-            value={formData.village}
-            onChange={(e) => setFormData({ ...formData, village: e.target.value })}
-          />
-          <Input
-            label="Street Address"
-            placeholder="House no., Street name"
-            value={formData.street}
-            onChange={(e) => setFormData({ ...formData, street: e.target.value })}
-          />
-          <Input
-            label="Landmark (Optional)"
-            placeholder="Near temple, school, etc."
-            value={formData.landmark}
-            onChange={(e) => setFormData({ ...formData, landmark: e.target.value })}
-          />
-          <Button className="w-full" onClick={handleSave} isLoading={isLoading}>
-            {editingAddress ? 'Update Address' : 'Save Address'}
-          </Button>
+      {showModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '24px' }}>
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '400px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: 0 }}>
+                {editingAddress ? 'Edit Address' : 'Add Address'}
+              </h2>
+              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                <X style={{ width: '24px', height: '24px', color: '#64748b' }} />
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Address Label</label>
+                <input
+                  type="text"
+                  placeholder="Home, Office, etc."
+                  value={formData.label}
+                  onChange={(e) => setFormData({ ...formData, label: e.target.value })}
+                  style={{ width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '15px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Village/Town</label>
+                <input
+                  type="text"
+                  placeholder="Enter village or town"
+                  value={formData.village}
+                  onChange={(e) => setFormData({ ...formData, village: e.target.value })}
+                  style={{ width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '15px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Street Address</label>
+                <input
+                  type="text"
+                  placeholder="House no., Street name"
+                  value={formData.street}
+                  onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+                  style={{ width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '15px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Landmark (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="Near temple, school, etc."
+                  value={formData.landmark}
+                  onChange={(e) => setFormData({ ...formData, landmark: e.target.value })}
+                  style={{ width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '15px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <button
+                onClick={handleSave}
+                disabled={isLoading}
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  backgroundColor: isLoading ? '#94a3b8' : '#059669',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  cursor: isLoading ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {isLoading ? 'Saving...' : editingAddress ? 'Update Address' : 'Save Address'}
+              </button>
+            </div>
+          </div>
         </div>
-      </Modal>
+      )}
     </div>
   );
 }

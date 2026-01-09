@@ -2,330 +2,187 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, MapPin, Plus, CreditCard, Banknote } from 'lucide-react';
-import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
-import Input from '@/components/ui/Input';
-import Modal from '@/components/ui/Modal';
+import Link from 'next/link';
+import { ArrowLeft, MapPin, Plus, CreditCard, Banknote, X } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { useAuthStore } from '@/store/authStore';
-import { useToast } from '@/components/ui/Toast';
 import { formatPrice, calculateDeliveryCharge, generateOrderId } from '@/lib/utils';
 import { db } from '@/lib/firebase';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
-import { cn } from '@/lib/utils';
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { user } = useAuthStore();
   const { items, customOrderDescription, clearCart } = useCartStore();
-  const { success, error: showError } = useToast();
 
   const [isLoading, setIsLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'online'>('cod');
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState(
-    user?.addresses.find((a) => a.isDefault)?.id || user?.addresses[0]?.id || ''
+    user?.addresses?.find((a) => a.isDefault)?.id || user?.addresses?.[0]?.id || ''
   );
+  const [error, setError] = useState('');
+  const [newAddress, setNewAddress] = useState({ village: '', street: '', landmark: '' });
 
-  // New address form
-  const [newAddress, setNewAddress] = useState({
-    village: '',
-    street: '',
-    landmark: '',
-  });
-
-  const selectedAddress = user?.addresses.find((a) => a.id === selectedAddressId);
+  const selectedAddress = user?.addresses?.find((a) => a.id === selectedAddressId);
   const itemsTotal = items.reduce((sum, item) => sum + item.total, 0);
-  const deliveryCharge = calculateDeliveryCharge(5); // Will be calculated based on actual distance
+  const deliveryCharge = calculateDeliveryCharge(5);
   const grandTotal = itemsTotal + deliveryCharge;
 
   const handleAddAddress = () => {
-    // In production, save to Firestore
-    showError('Please add address in profile settings');
+    setError('Please add address in profile settings');
+    setTimeout(() => setError(''), 3000);
     setShowAddressModal(false);
   };
 
   const handlePlaceOrder = async () => {
     if (!user) {
-      showError('Please login to place order');
+      setError('Please login to place order');
       router.push('/login');
       return;
     }
-
     if (!selectedAddress && items.length > 0) {
-      showError('Please select a delivery address');
+      setError('Please select a delivery address');
       return;
     }
-
     if (items.length === 0 && !customOrderDescription) {
-      showError('Your cart is empty');
+      setError('Your cart is empty');
       return;
     }
-
     setIsLoading(true);
-
     try {
       const orderId = generateOrderId();
-
       const order = {
-        id: orderId,
-        type: 'shopping' as const,
-        userId: user.id,
-        userName: user.name || 'Customer',
-        userPhone: user.phone,
+        id: orderId, type: 'shopping' as const, userId: user.id,
+        userName: user.name || 'Customer', userPhone: user.phone,
         userVillage: selectedAddress?.village || user.village || '',
-
-        items: items.map((item) => ({
-          productId: item.productId,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          total: item.total,
-        })),
-        itemsTotal,
-        deliveryCharge,
-        totalAmount: grandTotal,
-
-        deliveryAddress: selectedAddress
-          ? {
-              village: selectedAddress.village,
-              street: selectedAddress.street,
-              landmark: selectedAddress.landmark,
-            }
-          : undefined,
-
-        isCustomOrder: !!customOrderDescription,
-        customOrderDescription: customOrderDescription || undefined,
-
-        status: 'pending' as const,
-        paymentMethod,
-        paymentStatus: 'pending' as const,
-
-        timeline: [
-          {
-            status: 'pending' as const,
-            time: Timestamp.now(),
-            note: 'Order placed',
-          },
-        ],
-
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
+        items: items.map((item) => ({ productId: item.productId, name: item.name, price: item.price, quantity: item.quantity, total: item.total })),
+        itemsTotal, deliveryCharge, totalAmount: grandTotal,
+        deliveryAddress: selectedAddress ? { village: selectedAddress.village, street: selectedAddress.street, landmark: selectedAddress.landmark } : undefined,
+        isCustomOrder: !!customOrderDescription, customOrderDescription: customOrderDescription || undefined,
+        status: 'pending' as const, paymentMethod, paymentStatus: 'pending' as const,
+        timeline: [{ status: 'pending' as const, time: Timestamp.now(), note: 'Order placed' }],
+        createdAt: Timestamp.now(), updatedAt: Timestamp.now(),
       };
-
-      // Save to Firestore
       await setDoc(doc(db, 'orders', orderId), order);
-
-      // Clear cart
       clearCart();
-
-      // Show success
-      success('Order placed successfully!');
-
-      // Navigate to order details
+      alert('Order placed successfully!');
       router.push(`/orders/${orderId}`);
     } catch (err) {
       console.error('Error placing order:', err);
-      showError('Failed to place order. Please try again.');
+      setError('Failed to place order. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="px-4 py-4 pb-40">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <button
-          onClick={() => router.back()}
-          className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center hover:border-primary/50 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5 text-foreground" />
-        </button>
-        <h1 className="text-xl font-bold text-foreground">Checkout</h1>
+    <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', paddingBottom: '220px' }}>
+      {error && (
+        <div style={{ position: 'fixed', top: '16px', left: '16px', right: '16px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 100 }}>
+          <span style={{ fontSize: '14px', color: '#dc2626' }}>{error}</span>
+          <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X style={{ width: '18px', height: '18px', color: '#dc2626' }} /></button>
+        </div>
+      )}
+      <div style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '16px', position: 'sticky', top: 0, zIndex: 40 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button onClick={() => router.back()} style={{ width: '40px', height: '40px', backgroundColor: '#f1f5f9', border: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <ArrowLeft style={{ width: '20px', height: '20px', color: '#1e293b' }} />
+          </button>
+          <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b', margin: 0 }}>Checkout</h1>
+        </div>
       </div>
-
-      <div className="space-y-4">
-        {/* Delivery Address */}
-        <Card>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-foreground flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-primary" />
-              Delivery Address
+      <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <MapPin style={{ width: '18px', height: '18px', color: '#059669' }} />Delivery Address
             </h3>
-            <button
-              onClick={() => setShowAddressModal(true)}
-              className="text-sm text-primary font-medium"
-            >
-              {selectedAddress ? 'Change' : 'Add'}
-            </button>
+            <button onClick={() => setShowAddressModal(true)} style={{ fontSize: '14px', color: '#059669', fontWeight: '500', background: 'none', border: 'none', cursor: 'pointer' }}>{selectedAddress ? 'Change' : 'Add'}</button>
           </div>
-
           {selectedAddress ? (
-            <div className="bg-border/30 rounded-xl p-3">
-              <p className="font-medium text-foreground">{selectedAddress.label}</p>
-              <p className="text-sm text-muted mt-1">
-                {selectedAddress.street}, {selectedAddress.village}
-              </p>
-              {selectedAddress.landmark && (
-                <p className="text-sm text-muted">Near {selectedAddress.landmark}</p>
-              )}
+            <div style={{ backgroundColor: '#f8fafc', borderRadius: '10px', padding: '12px' }}>
+              <p style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b', margin: 0 }}>{selectedAddress.label}</p>
+              <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>{selectedAddress.street}, {selectedAddress.village}</p>
+              {selectedAddress.landmark && <p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>Near {selectedAddress.landmark}</p>}
             </div>
           ) : user?.addresses && user.addresses.length > 0 ? (
-            <div className="space-y-2">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {user.addresses.map((addr) => (
-                <button
-                  key={addr.id}
-                  onClick={() => setSelectedAddressId(addr.id)}
-                  className={cn(
-                    'w-full text-left p-3 rounded-xl border transition-colors',
-                    selectedAddressId === addr.id
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border hover:border-primary/50'
-                  )}
-                >
-                  <p className="font-medium text-foreground">{addr.label}</p>
-                  <p className="text-sm text-muted">
-                    {addr.street}, {addr.village}
-                  </p>
+                <button key={addr.id} onClick={() => setSelectedAddressId(addr.id)} style={{ width: '100%', textAlign: 'left', padding: '12px', borderRadius: '10px', border: selectedAddressId === addr.id ? '2px solid #059669' : '1px solid #e2e8f0', backgroundColor: selectedAddressId === addr.id ? '#ecfdf5' : '#ffffff', cursor: 'pointer' }}>
+                  <p style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b', margin: 0 }}>{addr.label}</p>
+                  <p style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>{addr.street}, {addr.village}</p>
                 </button>
               ))}
             </div>
           ) : (
-            <button
-              onClick={() => setShowAddressModal(true)}
-              className="w-full border-2 border-dashed border-border rounded-xl p-4 text-center text-muted hover:border-primary/50 hover:text-foreground transition-colors"
-            >
-              <Plus className="w-5 h-5 mx-auto mb-1" />
-              Add Delivery Address
+            <button onClick={() => setShowAddressModal(true)} style={{ width: '100%', border: '2px dashed #e2e8f0', borderRadius: '10px', padding: '16px', backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+              <Plus style={{ width: '20px', height: '20px', color: '#64748b' }} />
+              <span style={{ fontSize: '14px', color: '#64748b' }}>Add Delivery Address</span>
             </button>
           )}
-        </Card>
-
-        {/* Order Items Summary */}
-        <Card>
-          <h3 className="font-semibold text-foreground mb-3">
-            Order Items ({items.length})
-          </h3>
-          <div className="space-y-2">
+        </div>
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', margin: '0 0 12px' }}>Order Items ({items.length})</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {items.map((item) => (
-              <div key={item.productId} className="flex justify-between text-sm">
-                <span className="text-muted">
-                  {item.name} x {item.quantity}
-                </span>
-                <span className="text-foreground">{formatPrice(item.total)}</span>
+              <div key={item.productId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                <span style={{ color: '#64748b' }}>{item.name} x {item.quantity}</span>
+                <span style={{ color: '#1e293b' }}>{formatPrice(item.total)}</span>
               </div>
             ))}
             {customOrderDescription && (
-              <div className="text-sm text-muted pt-2 border-t border-border">
-                <span className="font-medium text-secondary">Custom Request:</span>{' '}
-                {customOrderDescription}
+              <div style={{ fontSize: '13px', color: '#64748b', paddingTop: '8px', borderTop: '1px solid #e2e8f0' }}>
+                <span style={{ fontWeight: '500', color: '#f97316' }}>Custom Request:</span> {customOrderDescription}
               </div>
             )}
           </div>
-        </Card>
-
-        {/* Payment Method */}
-        <Card>
-          <h3 className="font-semibold text-foreground mb-3">Payment Method</h3>
-          <div className="space-y-2">
-            <button
-              onClick={() => setPaymentMethod('cod')}
-              className={cn(
-                'w-full flex items-center gap-3 p-3 rounded-xl border transition-colors',
-                paymentMethod === 'cod'
-                  ? 'border-primary bg-primary/10'
-                  : 'border-border hover:border-primary/50'
-              )}
-            >
-              <Banknote className="w-5 h-5 text-success" />
-              <div className="text-left">
-                <p className="font-medium text-foreground">Cash on Delivery</p>
-                <p className="text-xs text-muted">Pay when you receive</p>
-              </div>
+        </div>
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', margin: '0 0 12px' }}>Payment Method</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <button onClick={() => setPaymentMethod('cod')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '14px', borderRadius: '10px', border: paymentMethod === 'cod' ? '2px solid #059669' : '1px solid #e2e8f0', backgroundColor: paymentMethod === 'cod' ? '#ecfdf5' : '#ffffff', cursor: 'pointer', textAlign: 'left' }}>
+              <Banknote style={{ width: '20px', height: '20px', color: '#22c55e' }} />
+              <div><p style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b', margin: 0 }}>Cash on Delivery</p><p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0' }}>Pay when you receive</p></div>
             </button>
-
-            <button
-              onClick={() => setPaymentMethod('online')}
-              className={cn(
-                'w-full flex items-center gap-3 p-3 rounded-xl border transition-colors',
-                paymentMethod === 'online'
-                  ? 'border-primary bg-primary/10'
-                  : 'border-border hover:border-primary/50'
-              )}
-            >
-              <CreditCard className="w-5 h-5 text-secondary" />
-              <div className="text-left">
-                <p className="font-medium text-foreground">Online Payment</p>
-                <p className="text-xs text-muted">UPI, Cards, Net Banking</p>
-              </div>
+            <button onClick={() => setPaymentMethod('online')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '14px', borderRadius: '10px', border: paymentMethod === 'online' ? '2px solid #059669' : '1px solid #e2e8f0', backgroundColor: paymentMethod === 'online' ? '#ecfdf5' : '#ffffff', cursor: 'pointer', textAlign: 'left' }}>
+              <CreditCard style={{ width: '20px', height: '20px', color: '#f97316' }} />
+              <div><p style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b', margin: 0 }}>Online Payment</p><p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0' }}>UPI, Cards, Net Banking</p></div>
             </button>
           </div>
-        </Card>
+        </div>
       </div>
-
-      {/* Order Total & Place Order */}
-      <div className="fixed bottom-20 left-0 right-0 bg-background border-t border-border p-4 z-40">
-        <div className="max-w-lg mx-auto">
-          <Card className="mb-3">
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted">Items Total</span>
-                <span className="text-foreground">{formatPrice(itemsTotal)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted">Delivery Charge</span>
-                <span className="text-foreground">{formatPrice(deliveryCharge)}</span>
-              </div>
-              <div className="border-t border-border pt-2 flex justify-between font-semibold">
-                <span className="text-foreground">Total</span>
-                <span className="text-primary">{formatPrice(grandTotal)}</span>
-              </div>
+      <div style={{ position: 'fixed', bottom: '70px', left: 0, right: 0, backgroundColor: '#ffffff', borderTop: '1px solid #e2e8f0', padding: '16px', zIndex: 40 }}>
+        <div style={{ backgroundColor: '#f8fafc', borderRadius: '12px', padding: '16px', marginBottom: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}><span style={{ fontSize: '14px', color: '#64748b' }}>Items Total</span><span style={{ fontSize: '14px', color: '#1e293b' }}>{formatPrice(itemsTotal)}</span></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}><span style={{ fontSize: '14px', color: '#64748b' }}>Delivery Charge</span><span style={{ fontSize: '14px', color: '#1e293b' }}>{formatPrice(deliveryCharge)}</span></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #e2e8f0', paddingTop: '8px' }}><span style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b' }}>Total</span><span style={{ fontSize: '18px', fontWeight: '700', color: '#059669' }}>{formatPrice(grandTotal)}</span></div>
+        </div>
+        <button onClick={handlePlaceOrder} disabled={isLoading} style={{ width: '100%', padding: '16px', backgroundColor: isLoading ? '#94a3b8' : '#059669', color: '#ffffff', border: 'none', borderRadius: '12px', fontSize: '16px', fontWeight: '600', cursor: isLoading ? 'not-allowed' : 'pointer' }}>{isLoading ? 'Placing Order...' : 'Place Order'}</button>
+      </div>
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: '#ffffff', borderTop: '1px solid #e2e8f0', padding: '8px 0', zIndex: 50 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
+          {[{ href: '/home', label: 'Home', icon: '🏠', active: false },{ href: '/shop', label: 'Shop', icon: '🛒', active: true },{ href: '/ride', label: 'Ride', icon: '🛵', active: false },{ href: '/services', label: 'Services', icon: '🔧', active: false },{ href: '/orders', label: 'Orders', icon: '📋', active: false }].map((item) => (
+            <Link key={item.href} href={item.href} style={{ textDecoration: 'none', textAlign: 'center', padding: '8px 12px' }}><span style={{ fontSize: '20px', display: 'block' }}>{item.icon}</span><span style={{ fontSize: '11px', color: item.active ? '#059669' : '#64748b', fontWeight: item.active ? '600' : '400' }}>{item.label}</span></Link>
+          ))}
+        </div>
+      </div>
+      {showAddressModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '24px' }}>
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '400px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Add Address</h2>
+              <button onClick={() => setShowAddressModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X style={{ width: '24px', height: '24px', color: '#64748b' }} /></button>
             </div>
-          </Card>
-
-          <Button
-            className="w-full"
-            size="lg"
-            onClick={handlePlaceOrder}
-            isLoading={isLoading}
-          >
-            Place Order
-          </Button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div><label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Village/Town</label><input type="text" placeholder="Enter village or town name" value={newAddress.village} onChange={(e) => setNewAddress({ ...newAddress, village: e.target.value })} style={{ width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '15px', boxSizing: 'border-box' }} /></div>
+              <div><label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Street Address</label><input type="text" placeholder="House no., Street name" value={newAddress.street} onChange={(e) => setNewAddress({ ...newAddress, street: e.target.value })} style={{ width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '15px', boxSizing: 'border-box' }} /></div>
+              <div><label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Landmark</label><input type="text" placeholder="Near temple, school, etc." value={newAddress.landmark} onChange={(e) => setNewAddress({ ...newAddress, landmark: e.target.value })} style={{ width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '15px', boxSizing: 'border-box' }} /></div>
+              <button onClick={handleAddAddress} style={{ width: '100%', padding: '14px', backgroundColor: '#059669', color: '#ffffff', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>Save Address</button>
+            </div>
+          </div>
         </div>
-      </div>
-
-      {/* Add Address Modal */}
-      <Modal
-        isOpen={showAddressModal}
-        onClose={() => setShowAddressModal(false)}
-        title="Add Address"
-      >
-        <div className="space-y-4">
-          <Input
-            label="Village/Town"
-            placeholder="Enter village or town name"
-            value={newAddress.village}
-            onChange={(e) => setNewAddress({ ...newAddress, village: e.target.value })}
-          />
-          <Input
-            label="Street Address"
-            placeholder="House no., Street name"
-            value={newAddress.street}
-            onChange={(e) => setNewAddress({ ...newAddress, street: e.target.value })}
-          />
-          <Input
-            label="Landmark"
-            placeholder="Near temple, school, etc."
-            value={newAddress.landmark}
-            onChange={(e) => setNewAddress({ ...newAddress, landmark: e.target.value })}
-          />
-          <Button className="w-full" onClick={handleAddAddress}>
-            Save Address
-          </Button>
-        </div>
-      </Modal>
+      )}
     </div>
   );
 }
