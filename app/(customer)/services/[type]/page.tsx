@@ -76,37 +76,35 @@ export default function ServiceTypePage() {
       const orderId = generateOrderId();
       const option = service.options.find((o) => o.id === selectedOption);
 
-      const order = {
+      const order: Record<string, any> = {
         id: orderId,
-        type: 'service' as const,
+        type: 'service',
         userId: user.id,
         userName: user.name || 'Customer',
         userPhone: user.phone,
         userVillage: address.village,
-
-        serviceType: serviceType as ServiceType,
+        serviceType: serviceType,
         serviceOption: option?.name || selectedOption,
-        description: description || undefined,
-        preferredDate: preferredDate || undefined,
-        preferredTime: preferredTime || undefined,
         serviceAddress: address,
         totalAmount: 0,
-
-        status: 'pending' as const,
-        paymentMethod: 'cod' as const,
-        paymentStatus: 'pending' as const,
-
+        status: 'pending',
+        paymentMethod: 'cod',
+        paymentStatus: 'pending',
         timeline: [
           {
-            status: 'pending' as const,
+            status: 'pending',
             time: Timestamp.now(),
             note: 'Service request submitted',
           },
         ],
-
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
+
+      // Only add optional fields if they have values (Firestore rejects undefined)
+      if (description) order.description = description;
+      if (preferredDate) order.preferredDate = preferredDate;
+      if (preferredTime) order.preferredTime = preferredTime;
 
       await setDoc(doc(db, 'orders', orderId), order);
 
