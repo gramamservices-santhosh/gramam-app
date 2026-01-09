@@ -2,16 +2,19 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Search, ChevronRight, Phone } from 'lucide-react';
-import ServiceGrid from '@/components/home/ServiceGrid';
-import ActiveOrders from '@/components/home/ActiveOrders';
+import { Search, ChevronRight, Phone, ShoppingCart, Bike, Wrench, PartyPopper } from 'lucide-react';
 import { CATEGORIES } from '@/constants/categories';
 import { useAuthStore } from '@/store/authStore';
-import { Order } from '@/types';
+
+const services = [
+  { id: 'shopping', name: 'Shopping', description: 'Groceries & more', href: '/shop', icon: ShoppingCart, color: '#3b82f6', bg: '#eff6ff' },
+  { id: 'transport', name: 'Transport', description: 'Bike or auto rides', href: '/ride', icon: Bike, color: '#f97316', bg: '#fff7ed' },
+  { id: 'services', name: 'Services', description: 'Plumbing & electrical', href: '/services', icon: Wrench, color: '#059669', bg: '#ecfdf5' },
+  { id: 'events', name: 'Events', description: 'Festivals & more', href: '/services?type=events', icon: PartyPopper, color: '#8b5cf6', bg: '#f5f3ff' },
+];
 
 export default function HomePage() {
   const { user } = useAuthStore();
-  const [activeOrders] = useState<Order[]>([]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -23,106 +26,202 @@ export default function HomePage() {
   const firstName = user?.name?.split(' ')[0] || '';
 
   return (
-    <div className="pb-24 bg-slate-50 min-h-screen">
-      {/* Hero Section */}
-      <div className="px-4 pt-6 pb-8">
-        <h1 className="text-2xl font-bold text-slate-800">
+    <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', paddingBottom: '100px' }}>
+
+      {/* Header */}
+      <div style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '12px 16px', position: 'sticky', top: 0, zIndex: 40 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ width: '40px', height: '40px', backgroundColor: '#059669', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ color: '#ffffff', fontWeight: '600', fontSize: '14px' }}>{firstName.charAt(0) || 'G'}</span>
+            </div>
+            <div>
+              <p style={{ fontSize: '11px', color: '#64748b', margin: 0 }}>Deliver to</p>
+              <p style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b', margin: 0 }}>{user?.village || 'Select location'}</p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '20px' }}>🏘️</span>
+            <span style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b' }}>Gramam</span>
+          </div>
+          <div style={{ width: '40px', height: '40px', backgroundColor: '#f1f5f9', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e2e8f0' }}>
+            <span style={{ fontSize: '18px' }}>🔔</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Greeting */}
+      <div style={{ padding: '24px 16px 16px' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
           {getGreeting()}{firstName && `, ${firstName}`}
         </h1>
-        <p className="text-slate-500 mt-1">What do you need today?</p>
+        <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>What do you need today?</p>
       </div>
 
       {/* Search Bar */}
-      <div className="px-4 mb-8">
-        <Link href="/shop" className="block">
-          <div className="flex items-center gap-3 h-12 px-4 bg-white border border-slate-200 rounded-xl hover:border-emerald-500/50 transition-colors shadow-sm">
-            <Search className="w-5 h-5 text-slate-400" />
-            <span className="text-slate-400 text-sm">Search products, services...</span>
+      <div style={{ padding: '0 16px', marginBottom: '24px' }}>
+        <Link href="/shop" style={{ textDecoration: 'none' }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            height: '48px',
+            padding: '0 16px',
+            backgroundColor: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '12px',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+          }}>
+            <Search style={{ width: '20px', height: '20px', color: '#94a3b8' }} />
+            <span style={{ fontSize: '14px', color: '#94a3b8' }}>Search products, services...</span>
           </div>
         </Link>
       </div>
 
-      {/* Services Section */}
-      <section className="px-4 mb-10">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-slate-800">Services</h2>
+      {/* Services */}
+      <div style={{ padding: '0 16px', marginBottom: '32px' }}>
+        <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', marginBottom: '16px' }}>Services</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+          {services.map((service) => {
+            const Icon = service.icon;
+            return (
+              <Link key={service.id} href={service.href} style={{ textDecoration: 'none' }}>
+                <div style={{
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                }}>
+                  <div style={{
+                    width: '44px',
+                    height: '44px',
+                    backgroundColor: service.bg,
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: '12px'
+                  }}>
+                    <Icon style={{ width: '22px', height: '22px', color: service.color }} />
+                  </div>
+                  <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{service.name}</h3>
+                  <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>{service.description}</p>
+                </div>
+              </Link>
+            );
+          })}
         </div>
-        <ServiceGrid />
-      </section>
-
-      {/* Active Orders */}
-      {activeOrders.length > 0 && (
-        <section className="px-4 mb-10">
-          <ActiveOrders orders={activeOrders} />
-        </section>
-      )}
+      </div>
 
       {/* Categories */}
-      <section className="mb-10">
-        <div className="flex items-center justify-between px-4 mb-4">
-          <h2 className="text-lg font-semibold text-slate-800">Shop by Category</h2>
-          <Link
-            href="/shop"
-            className="flex items-center gap-1 text-sm text-emerald-600 font-medium"
-          >
+      <div style={{ marginBottom: '32px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', marginBottom: '16px' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Shop by Category</h2>
+          <Link href="/shop" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '14px', color: '#059669', fontWeight: '500', textDecoration: 'none' }}>
             See All
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight style={{ width: '16px', height: '16px' }} />
           </Link>
         </div>
-
-        <div className="flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide">
+        <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', padding: '0 16px', paddingBottom: '8px' }}>
           {CATEGORIES.slice(0, 6).map((category) => (
-            <Link
-              key={category.id}
-              href={`/shop/${category.id}`}
-              className="flex-shrink-0"
-            >
-              <div className="w-20 flex flex-col items-center gap-2 p-3 bg-white border border-slate-200 rounded-xl hover:border-emerald-500/50 transition-colors shadow-sm">
-                <span className="text-2xl">{category.icon}</span>
-                <span className="text-xs text-center text-slate-700 font-medium line-clamp-1">
-                  {category.name}
-                </span>
+            <Link key={category.id} href={`/shop/${category.id}`} style={{ textDecoration: 'none', flexShrink: 0 }}>
+              <div style={{
+                width: '80px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+              }}>
+                <span style={{ fontSize: '28px' }}>{category.icon}</span>
+                <span style={{ fontSize: '11px', color: '#374151', fontWeight: '500', textAlign: 'center' }}>{category.name}</span>
               </div>
             </Link>
           ))}
         </div>
-      </section>
+      </div>
 
       {/* Promo Card */}
-      <section className="px-4 mb-10">
-        <div className="bg-emerald-600 rounded-2xl p-5 shadow-lg shadow-emerald-600/20">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-white font-semibold text-lg">Free Delivery</h3>
-              <p className="text-emerald-100 text-sm mt-1">
-                On orders above Rs. 500
-              </p>
-              <Link
-                href="/shop"
-                className="inline-block mt-4 px-4 py-2 bg-white text-emerald-600 rounded-lg text-sm font-semibold hover:bg-emerald-50 transition-colors"
-              >
-                Order Now
-              </Link>
-            </div>
-            <span className="text-5xl">🛵</span>
+      <div style={{ padding: '0 16px', marginBottom: '32px' }}>
+        <div style={{
+          backgroundColor: '#059669',
+          borderRadius: '16px',
+          padding: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <div>
+            <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#ffffff', margin: 0 }}>Free Delivery</h3>
+            <p style={{ fontSize: '14px', color: '#a7f3d0', marginTop: '4px' }}>On orders above Rs. 500</p>
+            <Link href="/shop" style={{
+              display: 'inline-block',
+              marginTop: '16px',
+              padding: '10px 20px',
+              backgroundColor: '#ffffff',
+              color: '#059669',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: '600',
+              textDecoration: 'none'
+            }}>
+              Order Now
+            </Link>
           </div>
+          <span style={{ fontSize: '48px' }}>🛵</span>
         </div>
-      </section>
+      </div>
 
       {/* Contact */}
-      <section className="px-4">
-        <div className="bg-white border border-slate-200 rounded-xl p-5 text-center shadow-sm">
-          <p className="text-sm text-slate-500 mb-2">Need help?</p>
-          <a
-            href="tel:+919876543210"
-            className="inline-flex items-center gap-2 text-emerald-600 font-semibold"
-          >
-            <Phone className="w-4 h-4" />
+      <div style={{ padding: '0 16px', marginBottom: '24px' }}>
+        <div style={{
+          backgroundColor: '#ffffff',
+          border: '1px solid #e2e8f0',
+          borderRadius: '12px',
+          padding: '20px',
+          textAlign: 'center',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+        }}>
+          <p style={{ fontSize: '14px', color: '#64748b', margin: 0, marginBottom: '8px' }}>Need help?</p>
+          <a href="tel:+919876543210" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: '#059669', fontWeight: '600', fontSize: '16px', textDecoration: 'none' }}>
+            <Phone style={{ width: '18px', height: '18px' }} />
             +91 98765 43210
           </a>
-          <p className="text-xs text-slate-400 mt-2">7 AM - 9 PM</p>
+          <p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '8px' }}>7 AM - 9 PM</p>
         </div>
-      </section>
+      </div>
+
+      {/* Bottom Navigation */}
+      <div style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: '#ffffff',
+        borderTop: '1px solid #e2e8f0',
+        padding: '8px 0',
+        zIndex: 50
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
+          {[
+            { href: '/home', label: 'Home', icon: '🏠', active: true },
+            { href: '/shop', label: 'Shop', icon: '🛒', active: false },
+            { href: '/ride', label: 'Ride', icon: '🛵', active: false },
+            { href: '/services', label: 'Services', icon: '🔧', active: false },
+            { href: '/orders', label: 'Orders', icon: '📋', active: false },
+          ].map((item) => (
+            <Link key={item.href} href={item.href} style={{ textDecoration: 'none', textAlign: 'center', padding: '8px 12px' }}>
+              <span style={{ fontSize: '20px', display: 'block' }}>{item.icon}</span>
+              <span style={{ fontSize: '11px', color: item.active ? '#059669' : '#64748b', fontWeight: item.active ? '600' : '400' }}>{item.label}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
