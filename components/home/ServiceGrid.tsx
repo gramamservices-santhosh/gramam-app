@@ -1,42 +1,68 @@
 'use client';
 
 import Link from 'next/link';
-import { MAIN_SERVICES } from '@/constants/services';
-import { cn } from '@/lib/utils';
+import { ShoppingCart, Bike, Wrench, PartyPopper } from 'lucide-react';
+
+const services = [
+  {
+    id: 'shopping',
+    name: 'Shopping',
+    description: 'Groceries, vegetables & more',
+    href: '/shop',
+    icon: ShoppingCart,
+    iconBg: 'bg-blue-500/10',
+    iconColor: 'text-blue-500',
+  },
+  {
+    id: 'transport',
+    name: 'Transport',
+    description: 'Book bike or auto rides',
+    href: '/ride',
+    icon: Bike,
+    iconBg: 'bg-accent/10',
+    iconColor: 'text-accent',
+  },
+  {
+    id: 'services',
+    name: 'Services',
+    description: 'Plumbing, electrical & more',
+    href: '/services',
+    icon: Wrench,
+    iconBg: 'bg-success/10',
+    iconColor: 'text-success',
+  },
+  {
+    id: 'events',
+    name: 'Events',
+    description: 'Festivals & celebrations',
+    href: '/services?type=events',
+    icon: PartyPopper,
+    iconBg: 'bg-purple-500/10',
+    iconColor: 'text-purple-500',
+  },
+];
 
 export default function ServiceGrid() {
   return (
-    <div className="grid grid-cols-2 gap-4">
-      {MAIN_SERVICES.map((service) => (
-        <Link
-          key={service.id}
-          href={service.href}
-          className={cn(
-            'relative overflow-hidden rounded-3xl p-5 h-36',
-            'bg-gradient-to-br',
-            service.color,
-            'hover:scale-[1.02] active:scale-[0.98] transition-all duration-200',
-            'shadow-xl'
-          )}
-        >
-          <div className="relative z-10 h-full flex flex-col">
-            <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-              <span className="text-2xl">{service.icon}</span>
+    <div className="grid grid-cols-2 gap-3">
+      {services.map((service) => {
+        const Icon = service.icon;
+        return (
+          <Link
+            key={service.id}
+            href={service.href}
+            className="bg-card border border-border rounded-xl p-4 hover:border-primary/50 transition-colors"
+          >
+            <div className={`w-11 h-11 rounded-xl ${service.iconBg} flex items-center justify-center mb-3`}>
+              <Icon className={`w-5 h-5 ${service.iconColor}`} />
             </div>
-            <div className="mt-auto">
-              <h3 className="text-white font-bold text-base">{service.name}</h3>
-              <p className="text-white/70 text-xs mt-0.5 line-clamp-1">
-                {service.description}
-              </p>
-            </div>
-          </div>
-
-          {/* Background decoration */}
-          <div className="absolute -right-6 -bottom-6 text-[100px] opacity-10 pointer-events-none">
-            {service.icon}
-          </div>
-        </Link>
-      ))}
+            <h3 className="text-foreground font-semibold text-sm">{service.name}</h3>
+            <p className="text-muted text-xs mt-0.5 line-clamp-1">
+              {service.description}
+            </p>
+          </Link>
+        );
+      })}
     </div>
   );
 }

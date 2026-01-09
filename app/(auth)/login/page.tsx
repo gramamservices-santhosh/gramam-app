@@ -2,9 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Phone, ArrowRight, User, MapPin } from 'lucide-react';
+import { Phone, ArrowRight, User, MapPin, ChevronDown } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/components/ui/Toast';
 import { Timestamp } from 'firebase/firestore';
@@ -40,7 +39,7 @@ export default function LoginPage() {
     }
   };
 
-  const handleDemoLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!phone || phone.length !== 10) {
@@ -55,11 +54,9 @@ export default function LoginPage() {
 
     setIsLoading(true);
 
-    // Simulate login delay
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Create demo user (no Firebase required)
-    const demoUser = {
+    const user = {
       id: `demo_${phone}`,
       phone: `+91${phone}`,
       name: name.trim(),
@@ -71,114 +68,120 @@ export default function LoginPage() {
       isActive: true,
     };
 
-    setUser(demoUser);
+    setUser(user);
     success(`Welcome, ${name}!`);
     router.replace('/home');
     setIsLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-primary via-primary-dark to-background">
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="text-6xl mb-3 animate-bounce">🏘️</div>
-          <h1 className="text-4xl font-bold text-white">Gramam</h1>
-          <p className="text-white/80 mt-1">Your Village, Your Services</p>
-          <div className="inline-block mt-3 px-4 py-1.5 bg-white/20 rounded-full text-sm text-white/90">
-            <MapPin className="w-4 h-4 inline mr-1" />
-            Thirupathur District
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col justify-center px-6 py-12 max-w-md mx-auto w-full">
+        {/* Logo & Branding */}
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-primary/10 mb-6">
+            <span className="text-4xl">🏘️</span>
           </div>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">
+            Gramam
+          </h1>
+          <p className="text-muted mt-2 text-base">
+            Your village, your services
+          </p>
         </div>
 
         {/* Login Form */}
-        <div className="w-full max-w-sm">
-          <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-6">
-            <h2 className="text-xl font-bold text-white mb-1">Get Started</h2>
-            <p className="text-white/70 text-sm mb-6">
+        <div className="space-y-6">
+          <div className="text-center mb-8">
+            <h2 className="text-xl font-semibold text-foreground">
+              Get Started
+            </h2>
+            <p className="text-muted text-sm mt-1">
               Enter your details to continue
             </p>
+          </div>
 
-            <form onSubmit={handleDemoLogin} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">
-                  Your Name
-                </label>
-                <div className="flex items-center gap-3 px-4 py-3 bg-white/10 border border-white/20 rounded-xl">
-                  <User className="w-5 h-5 text-white/60" />
+          <form onSubmit={handleLogin} className="space-y-5">
+            {/* Name Input */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-foreground-secondary">
+                Your Name
+              </label>
+              <div className="relative">
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
+                <input
+                  type="text"
+                  placeholder="Enter your name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full h-14 pl-12 pr-4 bg-card border border-border rounded-xl text-foreground placeholder-muted focus:border-primary focus:ring-0 transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* Phone Input */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-foreground-secondary">
+                Phone Number
+              </label>
+              <div className="flex gap-3">
+                <div className="flex items-center justify-center w-16 h-14 bg-card border border-border rounded-xl text-foreground font-medium">
+                  +91
+                </div>
+                <div className="relative flex-1">
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
                   <input
-                    type="text"
-                    placeholder="Enter your name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="flex-1 bg-transparent text-white placeholder-white/50 outline-none"
+                    type="tel"
+                    placeholder="10-digit number"
+                    value={phone}
+                    onChange={(e) => handlePhoneChange(e.target.value)}
+                    maxLength={10}
+                    inputMode="numeric"
+                    className="w-full h-14 pl-12 pr-4 bg-card border border-border rounded-xl text-foreground placeholder-muted focus:border-primary focus:ring-0 transition-colors"
                   />
                 </div>
               </div>
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">
-                  Phone Number
-                </label>
-                <div className="flex gap-2">
-                  <div className="flex items-center justify-center px-3 bg-white/10 border border-white/20 rounded-xl text-white font-medium">
-                    +91
-                  </div>
-                  <div className="flex-1 flex items-center gap-3 px-4 py-3 bg-white/10 border border-white/20 rounded-xl">
-                    <Phone className="w-5 h-5 text-white/60" />
-                    <input
-                      type="tel"
-                      placeholder="10-digit number"
-                      value={phone}
-                      onChange={(e) => handlePhoneChange(e.target.value)}
-                      maxLength={10}
-                      inputMode="numeric"
-                      className="flex-1 bg-transparent text-white placeholder-white/50 outline-none"
-                    />
-                  </div>
-                </div>
+            {/* Village Select */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-foreground-secondary">
+                Your Village/Town
+              </label>
+              <div className="relative">
+                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
+                <select
+                  value={village}
+                  onChange={(e) => setVillage(e.target.value)}
+                  className="w-full h-14 pl-12 pr-10 bg-card border border-border rounded-xl text-foreground appearance-none cursor-pointer focus:border-primary focus:ring-0 transition-colors"
+                >
+                  {VILLAGES.map((v) => (
+                    <option key={v} value={v} className="bg-card text-foreground">
+                      {v}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted pointer-events-none" />
               </div>
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">
-                  Your Village/Town
-                </label>
-                <div className="flex items-center gap-3 px-4 py-3 bg-white/10 border border-white/20 rounded-xl">
-                  <MapPin className="w-5 h-5 text-white/60" />
-                  <select
-                    value={village}
-                    onChange={(e) => setVillage(e.target.value)}
-                    className="flex-1 bg-transparent text-white outline-none appearance-none cursor-pointer"
-                  >
-                    {VILLAGES.map((v) => (
-                      <option key={v} value={v} className="bg-gray-800 text-white">
-                        {v}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full bg-accent hover:bg-accent/90 text-black font-bold"
-                size="lg"
-                isLoading={isLoading}
-              >
-                Continue
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
-            </form>
-          </div>
-
-          <p className="text-center text-xs text-white/60 mt-4 px-4">
-            Demo mode - No OTP verification required
-          </p>
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              className="w-full h-14 bg-primary hover:bg-primary-dark text-white font-semibold rounded-xl transition-colors"
+              isLoading={isLoading}
+            >
+              Continue
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
+          </form>
         </div>
       </div>
 
-      <div className="text-center py-4">
-        <p className="text-sm text-white/50">
+      {/* Footer */}
+      <div className="text-center py-6 px-6">
+        <p className="text-sm text-muted">
           Serving Vaniyambadi & Thirupathur District
         </p>
       </div>

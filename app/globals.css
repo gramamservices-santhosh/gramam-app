@@ -1,37 +1,66 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
-  --background: #1A1A2E;
-  --background-dark: #0F0F23;
-  --foreground: #FFFFFF;
-  --primary: #FF6B35;
-  --primary-dark: #E55A2B;
-  --secondary: #2EC4B6;
-  --accent: #FFBE0B;
-  --success: #4CAF50;
-  --danger: #FF5252;
-  --warning: #FFC107;
-  --card-bg: #16213E;
-  --border: #2A2A4A;
-  --muted: #6B7280;
+  /* Professional Color Palette */
+  --background: #0F172A;
+  --background-secondary: #1E293B;
+  --foreground: #F8FAFC;
+  --foreground-secondary: #CBD5E1;
+  --primary: #3B82F6;
+  --primary-dark: #2563EB;
+  --primary-light: #60A5FA;
+  --accent: #F97316;
+  --accent-light: #FB923C;
+  --success: #22C55E;
+  --danger: #EF4444;
+  --warning: #EAB308;
+  --card: #1E293B;
+  --card-elevated: #334155;
+  --border: #334155;
+  --border-light: #475569;
+  --muted: #94A3B8;
+  --muted-light: #64748B;
+
+  /* Spacing System (8px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Border Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
 }
 
 @theme inline {
   --color-background: var(--background);
-  --color-background-dark: var(--background-dark);
+  --color-background-secondary: var(--background-secondary);
   --color-foreground: var(--foreground);
+  --color-foreground-secondary: var(--foreground-secondary);
   --color-primary: var(--primary);
   --color-primary-dark: var(--primary-dark);
-  --color-secondary: var(--secondary);
+  --color-primary-light: var(--primary-light);
   --color-accent: var(--accent);
+  --color-accent-light: var(--accent-light);
   --color-success: var(--success);
   --color-danger: var(--danger);
   --color-warning: var(--warning);
-  --color-card: var(--card-bg);
+  --color-card: var(--card);
+  --color-card-elevated: var(--card-elevated);
   --color-border: var(--border);
+  --color-border-light: var(--border-light);
   --color-muted: var(--muted);
-  --font-sans: 'Poppins', sans-serif;
+  --color-muted-light: var(--muted-light);
+  --font-sans: 'Inter', system-ui, sans-serif;
 }
 
 * {
@@ -40,31 +69,48 @@
   box-sizing: border-box;
 }
 
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 body {
-  background: linear-gradient(180deg, var(--background) 0%, var(--background-dark) 100%);
+  background: var(--background);
   color: var(--foreground);
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   min-height: 100vh;
+  line-height: 1.5;
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--background-dark);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--primary);
+  background: var(--border);
   border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-light);
 }
 
 /* Hide scrollbar on mobile */
 @media (max-width: 768px) {
   ::-webkit-scrollbar {
     display: none;
+  }
+
+  body {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }
 
@@ -83,20 +129,53 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0);
+}
+
 /* Input autofill styles */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
   -webkit-text-fill-color: var(--foreground);
-  -webkit-box-shadow: 0 0 0px 1000px var(--card-bg) inset;
+  -webkit-box-shadow: 0 0 0px 1000px var(--card) inset;
   transition: background-color 5000s ease-in-out 0s;
 }
 
-/* Leaflet map container fix */
-.leaflet-container {
-  height: 100%;
+/* Focus styles */
+input:focus,
+select:focus,
+textarea:focus,
+button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Touch targets */
+button,
+a,
+[role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Responsive container */
+.container-app {
   width: 100%;
-  border-radius: 16px;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+  .container-app {
+    max-width: 768px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container-app {
+    max-width: 1024px;
+  }
 }
 
 /* Skeleton loading animation */
@@ -110,9 +189,25 @@ input:-webkit-autofill:focus {
 }
 
 .skeleton {
-  background: linear-gradient(90deg, var(--card-bg) 25%, var(--border) 50%, var(--card-bg) 75%);
+  background: linear-gradient(90deg, var(--card) 25%, var(--border) 50%, var(--card) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
 }
 
 /* Toast animations */
@@ -136,4 +231,11 @@ input:-webkit-autofill:focus {
     transform: translateY(-100%);
     opacity: 0;
   }
+}
+
+/* Leaflet map container fix */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  border-radius: var(--radius-lg);
 }

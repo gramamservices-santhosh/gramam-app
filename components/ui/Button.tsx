@@ -28,20 +28,17 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const variants = {
-      primary:
-        'bg-primary hover:bg-primary-dark text-white shadow-lg shadow-primary/25',
-      secondary:
-        'bg-secondary hover:bg-secondary/90 text-white shadow-lg shadow-secondary/25',
-      outline:
-        'border-2 border-primary text-primary hover:bg-primary hover:text-white',
+      primary: 'bg-primary hover:bg-primary-dark text-white',
+      secondary: 'bg-card border border-border hover:border-primary/50 text-foreground',
+      outline: 'border border-primary text-primary hover:bg-primary hover:text-white',
       ghost: 'text-foreground hover:bg-card',
-      danger: 'bg-danger hover:bg-danger/90 text-white shadow-lg shadow-danger/25',
+      danger: 'bg-danger hover:bg-danger/90 text-white',
     };
 
     const sizes = {
-      sm: 'px-3 py-1.5 text-sm',
-      md: 'px-4 py-2.5 text-base',
-      lg: 'px-6 py-3 text-lg',
+      sm: 'h-9 px-3 text-sm',
+      md: 'h-11 px-4 text-sm',
+      lg: 'h-14 px-6 text-base',
     };
 
     return (
@@ -49,10 +46,9 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || isLoading}
         className={cn(
-          'inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all duration-200',
+          'inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-colors',
           'focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background',
           'disabled:opacity-50 disabled:cursor-not-allowed',
-          'active:scale-[0.98]',
           variants[variant],
           sizes[size],
           className
@@ -60,7 +56,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         {...props}
       >
         {isLoading ? (
-          <Loader2 className="w-5 h-5 animate-spin" />
+          <Loader2 className="w-4 h-4 animate-spin" />
         ) : (
           leftIcon
         )}
