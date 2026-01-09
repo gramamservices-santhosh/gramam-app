@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Phone, ArrowRight, User, MapPin, ChevronDown, Eye, EyeOff } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/components/ui/Toast';
 import { Timestamp } from 'firebase/firestore';
@@ -31,7 +31,6 @@ export default function LoginPage() {
   const [name, setName] = useState('');
   const [village, setVillage] = useState('Vaniyambadi');
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
   const handlePhoneChange = (value: string) => {
     const cleaned = value.replace(/\D/g, '');
@@ -76,150 +75,195 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
-      {/* Left Side - Illustration (hidden on mobile) */}
-      <div className="hidden lg:flex lg:w-1/2 bg-emerald-600 items-center justify-center p-12">
-        <div className="max-w-md text-center">
-          <div className="text-8xl mb-8">🏘️</div>
-          <h2 className="text-3xl font-bold text-white mb-4">Welcome to Gramam</h2>
-          <p className="text-emerald-100 text-lg">
-            Your one-stop solution for village services - shopping, transport, repairs, and more.
-          </p>
-        </div>
-      </div>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+      <div style={{ width: '100%', maxWidth: '400px' }}>
 
-      {/* Right Side - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
-        <div className="w-full max-w-md">
-          {/* Mobile Logo */}
-          <div className="lg:hidden text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-100 mb-4">
-              <span className="text-3xl">🏘️</span>
-            </div>
-            <h1 className="text-2xl font-bold text-slate-800">Gramam</h1>
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+          <div style={{
+            width: '80px',
+            height: '80px',
+            backgroundColor: '#d1fae5',
+            borderRadius: '20px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '16px'
+          }}>
+            <span style={{ fontSize: '40px' }}>🏘️</span>
           </div>
+          <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', margin: '0' }}>Gramam</h1>
+          <p style={{ fontSize: '14px', color: '#64748b', marginTop: '8px' }}>Your Village, Your Services</p>
+        </div>
 
-          {/* Form Card */}
-          <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 p-8">
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold text-slate-800">Log in</h2>
-              <p className="text-slate-500 mt-2">
-                Welcome back! Enter your details to continue.
-              </p>
+        {/* Form Card */}
+        <div style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          padding: '32px',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)'
+        }}>
+
+          <h2 style={{ fontSize: '24px', fontWeight: '600', color: '#1e293b', marginBottom: '8px' }}>Log in</h2>
+          <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '32px' }}>Enter your details to continue</p>
+
+          <form onSubmit={handleLogin}>
+
+            {/* Name Field */}
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
+                Full Name
+              </label>
+              <input
+                type="text"
+                placeholder="Enter your full name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                style={{
+                  width: '100%',
+                  height: '48px',
+                  padding: '0 16px',
+                  fontSize: '16px',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  backgroundColor: '#f8fafc',
+                  color: '#1e293b',
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
             </div>
 
-            <form onSubmit={handleLogin} className="space-y-5">
-              {/* Name Input */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Your Name
-                </label>
-                <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Enter your name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full h-12 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                  />
+            {/* Phone Field */}
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
+                Phone Number
+              </label>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{
+                  width: '64px',
+                  height: '48px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#f1f5f9',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#475569',
+                  flexShrink: 0
+                }}>
+                  +91
                 </div>
+                <input
+                  type="tel"
+                  placeholder="9876543210"
+                  value={phone}
+                  onChange={(e) => handlePhoneChange(e.target.value)}
+                  maxLength={10}
+                  inputMode="numeric"
+                  style={{
+                    flex: 1,
+                    height: '48px',
+                    padding: '0 16px',
+                    fontSize: '16px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '12px',
+                    backgroundColor: '#f8fafc',
+                    color: '#1e293b',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
               </div>
+            </div>
 
-              {/* Phone Input */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Phone Number
-                </label>
-                <div className="flex gap-2">
-                  <div className="flex items-center justify-center w-16 h-12 bg-slate-50 border border-slate-200 rounded-xl text-slate-600 font-medium text-sm">
-                    +91
-                  </div>
-                  <div className="relative flex-1">
-                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                    <input
-                      type="tel"
-                      placeholder="10-digit number"
-                      value={phone}
-                      onChange={(e) => handlePhoneChange(e.target.value)}
-                      maxLength={10}
-                      inputMode="numeric"
-                      className="w-full h-12 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Village Select */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Your Village/Town
-                </label>
-                <div className="relative">
-                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  <select
-                    value={village}
-                    onChange={(e) => setVillage(e.target.value)}
-                    className="w-full h-12 pl-12 pr-10 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 appearance-none cursor-pointer focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                  >
-                    {VILLAGES.map((v) => (
-                      <option key={v} value={v}>
-                        {v}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
-                </div>
-              </div>
-
-              {/* Forgot Password */}
-              <div className="flex justify-end">
-                <Link
-                  href="/forgot-password"
-                  className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            {/* Village Field */}
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
+                Village / Town
+              </label>
+              <select
+                value={village}
+                onChange={(e) => setVillage(e.target.value)}
+                style={{
+                  width: '100%',
+                  height: '48px',
+                  padding: '0 16px',
+                  fontSize: '16px',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  backgroundColor: '#f8fafc',
+                  color: '#1e293b',
+                  outline: 'none',
+                  cursor: 'pointer',
+                  boxSizing: 'border-box'
+                }}
               >
-                {isLoading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <>
-                    Continue
-                    <ArrowRight className="w-5 h-5" />
-                  </>
-                )}
-              </button>
-            </form>
-
-            {/* Divider */}
-            <div className="flex items-center gap-4 my-6">
-              <div className="flex-1 h-px bg-slate-200" />
-              <span className="text-sm text-slate-400">or</span>
-              <div className="flex-1 h-px bg-slate-200" />
+                {VILLAGES.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
             </div>
 
-            {/* Sign Up Link */}
-            <p className="text-center text-slate-600">
-              Don't have an account?{' '}
-              <Link href="/signup" className="text-emerald-600 hover:text-emerald-700 font-semibold">
-                Sign up
+            {/* Forgot Password Link */}
+            <div style={{ textAlign: 'right', marginBottom: '24px' }}>
+              <Link href="/forgot-password" style={{ fontSize: '14px', color: '#059669', textDecoration: 'none', fontWeight: '500' }}>
+                Forgot password?
               </Link>
-            </p>
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={isLoading}
+              style={{
+                width: '100%',
+                height: '48px',
+                backgroundColor: '#059669',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                opacity: isLoading ? 0.7 : 1
+              }}
+            >
+              {isLoading ? 'Please wait...' : (
+                <>
+                  Continue
+                  <ArrowRight style={{ width: '20px', height: '20px' }} />
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Divider */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', margin: '24px 0' }}>
+            <div style={{ flex: 1, height: '1px', backgroundColor: '#e2e8f0' }} />
+            <span style={{ fontSize: '14px', color: '#94a3b8' }}>or</span>
+            <div style={{ flex: 1, height: '1px', backgroundColor: '#e2e8f0' }} />
           </div>
 
-          {/* Footer */}
-          <p className="text-center text-sm text-slate-400 mt-6">
-            Serving Vaniyambadi & Thirupathur District
+          {/* Sign Up Link */}
+          <p style={{ textAlign: 'center', fontSize: '14px', color: '#64748b', margin: 0 }}>
+            Don't have an account?{' '}
+            <Link href="/signup" style={{ color: '#059669', fontWeight: '600', textDecoration: 'none' }}>
+              Sign up
+            </Link>
           </p>
         </div>
+
+        {/* Footer */}
+        <p style={{ textAlign: 'center', fontSize: '12px', color: '#94a3b8', marginTop: '24px' }}>
+          Serving Vaniyambadi & Thirupathur District
+        </p>
       </div>
     </div>
   );
