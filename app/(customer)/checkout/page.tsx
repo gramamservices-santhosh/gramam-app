@@ -7,7 +7,7 @@ import { ArrowLeft, MapPin, Plus, CreditCard, Banknote, X } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { useAuthStore } from '@/store/authStore';
 import { formatPrice, calculateDeliveryCharge, generateOrderId } from '@/lib/utils';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
 
 export default function CheckoutPage() {
@@ -36,9 +36,11 @@ export default function CheckoutPage() {
   };
 
   const handlePlaceOrder = async () => {
-    if (!user) {
-      setError('Please login to place order');
-      router.push('/login');
+    // Check if Firebase Auth session is still active
+    const currentUser = auth.currentUser;
+    if (!currentUser || !user) {
+      setError('Session expired. Please login again.');
+      setTimeout(() => router.push('/login'), 1500);
       return;
     }
     if (!selectedAddress && items.length > 0) {

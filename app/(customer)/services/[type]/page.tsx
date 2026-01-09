@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Check } from 'lucide-react';
 import { getServiceCategory } from '@/constants/services';
 import { useAuthStore } from '@/store/authStore';
 import { generateOrderId } from '@/lib/utils';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 import { ServiceType } from '@/types';
 
 export default function ServiceTypePage() {
@@ -47,9 +48,13 @@ export default function ServiceTypePage() {
   }
 
   const handleBookService = async () => {
-    if (!user) {
-      setError('Please login to book service');
-      router.push('/login');
+    // Check if Firebase Auth session is still active
+    const currentUser = auth.currentUser;
+    if (!currentUser || !user) {
+      setError('Session expired. Please login again.');
+      setTimeout(() => {
+        router.push('/login');
+      }, 1500);
       return;
     }
 
