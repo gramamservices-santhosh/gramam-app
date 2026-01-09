@@ -151,7 +151,7 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
               <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: '0 0 16px' }}>Order Items</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {order.items.map((item, index) => (
-                  <div key={index} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: index < order.items.length - 1 ? '1px solid #e2e8f0' : 'none' }}>
+                  <div key={index} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: index < (order.items?.length || 0) - 1 ? '1px solid #e2e8f0' : 'none' }}>
                     <div>
                       <p style={{ fontWeight: '500', color: '#1e293b', margin: 0 }}>{item.name}</p>
                       <p style={{ fontSize: '14px', color: '#64748b', margin: '4px 0 0' }}>{formatPrice(item.price)} x {item.quantity}</p>
