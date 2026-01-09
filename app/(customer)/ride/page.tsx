@@ -1,284 +1,466 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import dynamic from 'next/dynamic';
-import { ArrowLeft, ArrowUpDown, MapPin, Navigation } from 'lucide-react';
-import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
-import VehicleSelector from '@/components/ride/VehicleSelector';
-import LocationInput from '@/components/ride/LocationInput';
-import FareBreakdown from '@/components/ride/FareBreakdown';
-import { useOrderStore } from '@/store/orderStore';
-import { useAuthStore } from '@/store/authStore';
-import { useToast } from '@/components/ui/Toast';
-import { calculateDistance, calculateRideFare, generateOrderId, formatPrice } from '@/lib/utils';
-import { db } from '@/lib/firebase';
-import { doc, setDoc, Timestamp } from 'firebase/firestore';
+import Link from 'next/link';
+import { ArrowLeft, ArrowUpDown, MapPin, Navigation, ChevronRight } from 'lucide-react';
+import { LOCATIONS } from '@/constants/locations';
 
-// Dynamic import for Map to avoid SSR issues
-const RideMap = dynamic(() => import('@/components/ride/RideMap'), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-48 bg-card rounded-2xl flex items-center justify-center">
-      <span className="text-4xl animate-pulse">🗺️</span>
-    </div>
-  ),
-});
+type LocationPoint = {
+  name: string;
+  lat: number;
+  lng: number;
+};
+
+const popularLocations = [
+  'Vaniyambadi Bus Stand',
+  'Vaniyambadi Railway Station',
+  'Government Hospital',
+  'Jolarpet Junction',
+];
 
 export default function RidePage() {
   const router = useRouter();
-  const { user } = useAuthStore();
-  const {
-    vehicleType,
-    pickup,
-    drop,
-    setVehicleType,
-    setPickup,
-    setDrop,
-    clearRideBooking,
-  } = useOrderStore();
-  const { success, error: showError } = useToast();
+  const [vehicleType, setVehicleType] = useState<'bike' | 'auto'>('bike');
+  const [pickup, setPickup] = useState<LocationPoint | null>(null);
+  const [drop, setDrop] = useState<LocationPoint | null>(null);
+  const [pickupSearch, setPickupSearch] = useState('');
+  const [dropSearch, setDropSearch] = useState('');
+  const [showPickupSuggestions, setShowPickupSuggestions] = useState(false);
+  const [showDropSuggestions, setShowDropSuggestions] = useState(false);
+  const [isBooking, setIsBooking] = useState(false);
 
-  const [isLoading, setIsLoading] = useState(false);
-
-  // Calculate distance and fare
+  // Calculate distance using Haversine formula
   const distance = useMemo(() => {
     if (pickup && drop) {
-      return calculateDistance(pickup.lat, pickup.lng, drop.lat, drop.lng);
+      const R = 6371; // Earth's radius in km
+      const dLat = ((drop.lat - pickup.lat) * Math.PI) / 180;
+      const dLng = ((drop.lng - pickup.lng) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((pickup.lat * Math.PI) / 180) *
+          Math.cos((drop.lat * Math.PI) / 180) *
+          Math.sin(dLng / 2) *
+          Math.sin(dLng / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
     }
     return 0;
   }, [pickup, drop]);
 
+  // Calculate fare
   const fare = useMemo(() => {
     if (distance > 0) {
-      return calculateRideFare(distance, vehicleType);
+      const rate = vehicleType === 'bike' ? 7 : 12;
+      const baseFare = vehicleType === 'bike' ? 20 : 30;
+      return Math.round(baseFare + distance * rate);
     }
     return 0;
   }, [distance, vehicleType]);
 
-  // Swap pickup and drop
-  const handleSwap = () => {
-    const temp = pickup;
-    setPickup(drop);
-    setDrop(temp);
+  // Filter locations based on search
+  const filteredPickupLocations = useMemo(() => {
+    if (!pickupSearch) return LOCATIONS.slice(0, 5);
+    return LOCATIONS.filter((loc) =>
+      loc.name.toLowerCase().includes(pickupSearch.toLowerCase())
+    ).slice(0, 5);
+  }, [pickupSearch]);
+
+  const filteredDropLocations = useMemo(() => {
+    if (!dropSearch) return LOCATIONS.slice(0, 5);
+    return LOCATIONS.filter((loc) =>
+      loc.name.toLowerCase().includes(dropSearch.toLowerCase())
+    ).slice(0, 5);
+  }, [dropSearch]);
+
+  const handleSelectPickup = (loc: typeof LOCATIONS[0]) => {
+    setPickup({ name: loc.name, lat: loc.lat, lng: loc.lng });
+    setPickupSearch(loc.name);
+    setShowPickupSuggestions(false);
   };
 
-  // Book ride
+  const handleSelectDrop = (loc: typeof LOCATIONS[0]) => {
+    setDrop({ name: loc.name, lat: loc.lat, lng: loc.lng });
+    setDropSearch(loc.name);
+    setShowDropSuggestions(false);
+  };
+
+  const handleSwap = () => {
+    const tempPickup = pickup;
+    const tempPickupSearch = pickupSearch;
+    setPickup(drop);
+    setPickupSearch(dropSearch);
+    setDrop(tempPickup);
+    setDropSearch(tempPickupSearch);
+  };
+
+  const handleQuickLocation = (locName: string) => {
+    const found = LOCATIONS.find((l) => l.name === locName);
+    if (found) {
+      if (!pickup) {
+        handleSelectPickup(found);
+      } else if (!drop) {
+        handleSelectDrop(found);
+      }
+    }
+  };
+
   const handleBookRide = async () => {
-    if (!user) {
-      showError('Please login to book a ride');
-      router.push('/login');
-      return;
-    }
+    if (!pickup || !drop) return;
+    setIsBooking(true);
 
-    if (!pickup || !drop) {
-      showError('Please select pickup and drop locations');
-      return;
-    }
+    // Simulate booking
+    await new Promise((resolve) => setTimeout(resolve, 1500));
 
-    setIsLoading(true);
-
-    try {
-      const orderId = generateOrderId();
-
-      const order = {
-        id: orderId,
-        type: 'transport' as const,
-        userId: user.id,
-        userName: user.name || 'Customer',
-        userPhone: user.phone,
-        userVillage: user.village || '',
-
-        transportType: vehicleType,
-        pickup,
-        drop,
-        distance,
-        fare,
-        totalAmount: fare,
-
-        status: 'pending' as const,
-        paymentMethod: 'cod' as const,
-        paymentStatus: 'pending' as const,
-
-        timeline: [
-          {
-            status: 'pending' as const,
-            time: Timestamp.now(),
-            note: 'Ride booking requested',
-          },
-        ],
-
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-      };
-
-      // Save to Firestore
-      await setDoc(doc(db, 'orders', orderId), order);
-
-      // Clear booking
-      clearRideBooking();
-
-      // Show success
-      success('Ride booked successfully!');
-
-      // Navigate to order details
-      router.push(`/orders/${orderId}`);
-    } catch (err) {
-      console.error('Error booking ride:', err);
-      showError('Failed to book ride. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
+    alert(`Ride booked! ${vehicleType === 'bike' ? 'Bike' : 'Auto'} from ${pickup.name} to ${drop.name}. Fare: Rs ${fare}`);
+    setIsBooking(false);
+    router.push('/orders');
   };
 
   return (
-    <div className="px-4 py-4 pb-40">
+    <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', paddingBottom: '100px' }}>
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <button
-          onClick={() => router.back()}
-          className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center hover:border-primary/50 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5 text-foreground" />
-        </button>
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Book a Ride</h1>
-          <p className="text-sm text-muted">Bike & Auto available 24/7</p>
+      <div style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '16px', position: 'sticky', top: 0, zIndex: 40 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button
+            onClick={() => router.back()}
+            style={{
+              width: '40px',
+              height: '40px',
+              backgroundColor: '#f1f5f9',
+              border: 'none',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer'
+            }}
+          >
+            <ArrowLeft style={{ width: '20px', height: '20px', color: '#1e293b' }} />
+          </button>
+          <div>
+            <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b', margin: 0 }}>Book a Ride</h1>
+            <p style={{ fontSize: '14px', color: '#64748b', marginTop: '2px' }}>Bike & Auto available 24/7</p>
+          </div>
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div style={{ padding: '16px' }}>
         {/* Vehicle Selection */}
-        <VehicleSelector selected={vehicleType} onSelect={setVehicleType} />
+        <div style={{ marginBottom: '20px' }}>
+          <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#64748b', marginBottom: '12px' }}>Select Vehicle</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <button
+              onClick={() => setVehicleType('bike')}
+              style={{
+                padding: '16px',
+                backgroundColor: vehicleType === 'bike' ? '#ecfdf5' : '#ffffff',
+                border: vehicleType === 'bike' ? '2px solid #059669' : '1px solid #e2e8f0',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                textAlign: 'center'
+              }}
+            >
+              <span style={{ fontSize: '32px', display: 'block', marginBottom: '8px' }}>🏍️</span>
+              <span style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', display: 'block' }}>Bike</span>
+              <span style={{ fontSize: '13px', color: '#64748b' }}>Rs 7/km</span>
+            </button>
+            <button
+              onClick={() => setVehicleType('auto')}
+              style={{
+                padding: '16px',
+                backgroundColor: vehicleType === 'auto' ? '#ecfdf5' : '#ffffff',
+                border: vehicleType === 'auto' ? '2px solid #059669' : '1px solid #e2e8f0',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                textAlign: 'center'
+              }}
+            >
+              <span style={{ fontSize: '32px', display: 'block', marginBottom: '8px' }}>🛺</span>
+              <span style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', display: 'block' }}>Auto</span>
+              <span style={{ fontSize: '13px', color: '#64748b' }}>Rs 12/km</span>
+            </button>
+          </div>
+        </div>
 
         {/* Location Inputs */}
-        <Card>
-          <div className="relative">
-            {/* Pickup */}
-            <LocationInput
-              label="Pickup Location"
-              placeholder="Enter pickup location"
-              value={pickup}
-              onChange={setPickup}
-              variant="pickup"
-            />
-
-            {/* Swap Button */}
-            <button
-              onClick={handleSwap}
-              className="absolute right-0 top-1/2 -translate-y-1/2 w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white hover:bg-primary-dark transition-colors z-10"
-              style={{ marginTop: '12px' }}
-            >
-              <ArrowUpDown className="w-4 h-4" />
-            </button>
-
-            {/* Divider */}
-            <div className="my-3 border-t border-dashed border-border" />
-
-            {/* Drop */}
-            <LocationInput
-              label="Drop Location"
-              placeholder="Enter drop location"
-              value={drop}
-              onChange={setDrop}
-              variant="drop"
-            />
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px', marginBottom: '20px', position: 'relative' }}>
+          {/* Pickup */}
+          <div style={{ marginBottom: '16px', position: 'relative' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '12px', height: '12px', backgroundColor: '#22c55e', borderRadius: '50%', flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Pickup Location</label>
+                <input
+                  type="text"
+                  placeholder="Enter pickup location"
+                  value={pickupSearch}
+                  onChange={(e) => {
+                    setPickupSearch(e.target.value);
+                    setShowPickupSuggestions(true);
+                    if (!e.target.value) setPickup(null);
+                  }}
+                  onFocus={() => setShowPickupSuggestions(true)}
+                  style={{
+                    width: '100%',
+                    fontSize: '15px',
+                    fontWeight: '500',
+                    color: '#1e293b',
+                    border: 'none',
+                    outline: 'none',
+                    padding: '4px 0',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            </div>
+            {showPickupSuggestions && filteredPickupLocations.length > 0 && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                zIndex: 50,
+                maxHeight: '200px',
+                overflowY: 'auto'
+              }}>
+                {filteredPickupLocations.map((loc) => (
+                  <button
+                    key={loc.name}
+                    onClick={() => handleSelectPickup(loc)}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      textAlign: 'left',
+                      border: 'none',
+                      borderBottom: '1px solid #f1f5f9',
+                      backgroundColor: 'transparent',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <MapPin style={{ width: '16px', height: '16px', color: '#64748b' }} />
+                    <span style={{ fontSize: '14px', color: '#1e293b' }}>{loc.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        </Card>
 
-        {/* Map */}
-        <div className="h-48">
-          <RideMap pickup={pickup} drop={drop} />
+          {/* Swap Button */}
+          <button
+            onClick={handleSwap}
+            style={{
+              position: 'absolute',
+              right: '16px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              width: '36px',
+              height: '36px',
+              backgroundColor: '#059669',
+              border: 'none',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer'
+            }}
+          >
+            <ArrowUpDown style={{ width: '16px', height: '16px', color: '#ffffff' }} />
+          </button>
+
+          {/* Divider */}
+          <div style={{ borderTop: '1px dashed #e2e8f0', marginBottom: '16px' }} />
+
+          {/* Drop */}
+          <div style={{ position: 'relative' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '12px', height: '12px', backgroundColor: '#ef4444', borderRadius: '50%', flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Drop Location</label>
+                <input
+                  type="text"
+                  placeholder="Enter drop location"
+                  value={dropSearch}
+                  onChange={(e) => {
+                    setDropSearch(e.target.value);
+                    setShowDropSuggestions(true);
+                    if (!e.target.value) setDrop(null);
+                  }}
+                  onFocus={() => setShowDropSuggestions(true)}
+                  style={{
+                    width: '100%',
+                    fontSize: '15px',
+                    fontWeight: '500',
+                    color: '#1e293b',
+                    border: 'none',
+                    outline: 'none',
+                    padding: '4px 0',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            </div>
+            {showDropSuggestions && filteredDropLocations.length > 0 && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                zIndex: 50,
+                maxHeight: '200px',
+                overflowY: 'auto'
+              }}>
+                {filteredDropLocations.map((loc) => (
+                  <button
+                    key={loc.name}
+                    onClick={() => handleSelectDrop(loc)}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      textAlign: 'left',
+                      border: 'none',
+                      borderBottom: '1px solid #f1f5f9',
+                      backgroundColor: 'transparent',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <MapPin style={{ width: '16px', height: '16px', color: '#64748b' }} />
+                    <span style={{ fontSize: '14px', color: '#1e293b' }}>{loc.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Distance & Fare Info */}
         {distance > 0 && (
-          <>
-            {/* Route Info */}
-            <Card className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Navigation className="w-5 h-5 text-primary" />
-                <span className="text-foreground font-medium">
-                  Distance: {distance.toFixed(1)} km
-                </span>
+          <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Navigation style={{ width: '20px', height: '20px', color: '#059669' }} />
+                <span style={{ fontSize: '15px', fontWeight: '500', color: '#1e293b' }}>Distance: {distance.toFixed(1)} km</span>
               </div>
-              <span className="text-muted text-sm">
-                ~{Math.ceil(distance * 3)} mins
-              </span>
-            </Card>
-
-            {/* Fare Breakdown */}
-            <FareBreakdown vehicleType={vehicleType} distance={distance} />
-          </>
+              <span style={{ fontSize: '14px', color: '#64748b' }}>~{Math.ceil(distance * 3)} mins</span>
+            </div>
+            <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ fontSize: '14px', color: '#64748b' }}>Base Fare</span>
+                <span style={{ fontSize: '14px', color: '#1e293b' }}>Rs {vehicleType === 'bike' ? 20 : 30}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ fontSize: '14px', color: '#64748b' }}>Distance Charge ({distance.toFixed(1)} km x Rs {vehicleType === 'bike' ? 7 : 12})</span>
+                <span style={{ fontSize: '14px', color: '#1e293b' }}>Rs {Math.round(distance * (vehicleType === 'bike' ? 7 : 12))}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>
+                <span style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b' }}>Total Fare</span>
+                <span style={{ fontSize: '18px', fontWeight: '700', color: '#059669' }}>Rs {fare}</span>
+              </div>
+            </div>
+          </div>
         )}
 
-        {/* Quick Locations */}
+        {/* Popular Locations */}
         {!pickup && !drop && (
-          <Card>
-            <h3 className="font-semibold text-foreground mb-3">Popular Locations</h3>
-            <div className="flex flex-wrap gap-2">
-              {[
-                'Vaniyambadi Bus Stand',
-                'Vaniyambadi Railway Station',
-                'Government Hospital',
-                'Jolarpet Junction',
-              ].map((loc) => (
+          <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', marginBottom: '12px' }}>Popular Locations</h3>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {popularLocations.map((loc) => (
                 <button
                   key={loc}
-                  onClick={() => {
-                    // Set as pickup if empty, else as drop
-                    const locations = require('@/constants/locations').LOCATIONS;
-                    const found = locations.find((l: { name: string }) => l.name === loc);
-                    if (found) {
-                      const point = { name: found.name, lat: found.lat, lng: found.lng };
-                      if (!pickup) {
-                        setPickup(point);
-                      } else {
-                        setDrop(point);
-                      }
-                    }
+                  onClick={() => handleQuickLocation(loc)}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#f1f5f9',
+                    border: 'none',
+                    borderRadius: '20px',
+                    fontSize: '13px',
+                    color: '#374151',
+                    cursor: 'pointer'
                   }}
-                  className="px-3 py-1.5 bg-border/50 rounded-full text-sm text-foreground hover:bg-primary/20 hover:text-primary transition-colors"
                 >
                   {loc}
                 </button>
               ))}
             </div>
-          </Card>
+          </div>
         )}
       </div>
 
       {/* Book Button */}
       {pickup && drop && distance > 0 && (
-        <div className="fixed bottom-20 left-0 right-0 p-4 z-40">
-          <div className="max-w-lg mx-auto">
-            <Card className="bg-card shadow-xl mb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted">
-                    {vehicleType === 'bike' ? '🏍️ Bike' : '🛺 Auto'} • {distance.toFixed(1)} km
-                  </p>
-                  <p className="text-xl font-bold text-primary">{formatPrice(fare)}</p>
-                </div>
-                <div className="text-right text-sm text-muted">
-                  <p>Cash Payment</p>
-                  <p className="text-foreground">~{Math.ceil(distance * 3)} mins</p>
-                </div>
+        <div style={{ position: 'fixed', bottom: '70px', left: '16px', right: '16px', zIndex: 40 }}>
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '12px',
+            padding: '16px',
+            marginBottom: '12px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>
+                  {vehicleType === 'bike' ? '🏍️ Bike' : '🛺 Auto'} • {distance.toFixed(1)} km
+                </p>
+                <p style={{ fontSize: '20px', fontWeight: '700', color: '#059669', margin: '4px 0 0' }}>Rs {fare}</p>
               </div>
-            </Card>
-
-            <Button
-              className="w-full"
-              size="lg"
-              onClick={handleBookRide}
-              isLoading={isLoading}
-            >
-              Book {vehicleType === 'bike' ? 'Bike' : 'Auto'} Ride
-            </Button>
+              <div style={{ textAlign: 'right' }}>
+                <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>Cash Payment</p>
+                <p style={{ fontSize: '14px', color: '#1e293b', margin: '2px 0 0' }}>~{Math.ceil(distance * 3)} mins</p>
+              </div>
+            </div>
           </div>
+          <button
+            onClick={handleBookRide}
+            disabled={isBooking}
+            style={{
+              width: '100%',
+              padding: '16px',
+              backgroundColor: isBooking ? '#94a3b8' : '#059669',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '16px',
+              fontWeight: '600',
+              color: '#ffffff',
+              cursor: isBooking ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {isBooking ? 'Booking...' : `Book ${vehicleType === 'bike' ? 'Bike' : 'Auto'} Ride`}
+          </button>
         </div>
       )}
+
+      {/* Bottom Nav */}
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: '#ffffff', borderTop: '1px solid #e2e8f0', padding: '8px 0', zIndex: 50 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
+          {[
+            { href: '/home', label: 'Home', icon: '🏠', active: false },
+            { href: '/shop', label: 'Shop', icon: '🛒', active: false },
+            { href: '/ride', label: 'Ride', icon: '🛵', active: true },
+            { href: '/services', label: 'Services', icon: '🔧', active: false },
+            { href: '/orders', label: 'Orders', icon: '📋', active: false },
+          ].map((item) => (
+            <Link key={item.href} href={item.href} style={{ textDecoration: 'none', textAlign: 'center', padding: '8px 12px' }}>
+              <span style={{ fontSize: '20px', display: 'block' }}>{item.icon}</span>
+              <span style={{ fontSize: '11px', color: item.active ? '#059669' : '#64748b', fontWeight: item.active ? '600' : '400' }}>{item.label}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

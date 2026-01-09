@@ -1,8 +1,9 @@
 'use client';
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   ArrowLeft,
   User,
@@ -13,25 +14,15 @@ import {
   ChevronRight,
   Edit2,
   Save,
+  Mail,
 } from 'lucide-react';
-import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
-import Input from '@/components/ui/Input';
 import { useAuthStore } from '@/store/authStore';
-import { useToast } from '@/components/ui/Toast';
-import { db, auth } from '@/lib/firebase';
-import { doc, updateDoc, Timestamp } from 'firebase/firestore';
-import { signOut } from 'firebase/auth';
-import Link from 'next/link';
 
 export default function ProfilePage() {
   const router = useRouter();
-  const isSetup = false;
-
   const { user, setUser, logout } = useAuthStore();
-  const { success, error: showError } = useToast();
 
-  const [isEditing, setIsEditing] = useState(isSetup);
+  const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || '',
@@ -39,279 +30,379 @@ export default function ProfilePage() {
     village: user?.village || '',
   });
 
-  useEffect(() => {
-    if (user) {
-      setFormData({
-        name: user.name || '',
-        email: user.email || '',
-        village: user.village || '',
-      });
-    }
-  }, [user]);
-
   const handleSave = async () => {
-    if (!user) return;
-
     if (!formData.name.trim()) {
-      showError('Please enter your name');
+      alert('Please enter your name');
       return;
     }
 
     if (!formData.village.trim()) {
-      showError('Please enter your village');
+      alert('Please enter your village');
       return;
     }
 
     setIsLoading(true);
 
-    try {
-      const userRef = doc(db, 'users', user.id);
-      await updateDoc(userRef, {
-        name: formData.name.trim(),
-        email: formData.email.trim() || null,
-        village: formData.village.trim(),
-        updatedAt: Timestamp.now(),
-      });
+    // Simulate save
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
+    if (user) {
       setUser({
         ...user,
         name: formData.name.trim(),
         email: formData.email.trim(),
         village: formData.village.trim(),
       });
-
-      success('Profile updated successfully!');
-      setIsEditing(false);
-
-      if (isSetup) {
-        router.replace('/home');
-      }
-    } catch (err) {
-      console.error('Error updating profile:', err);
-      showError('Failed to update profile');
-    } finally {
-      setIsLoading(false);
     }
+
+    setIsLoading(false);
+    setIsEditing(false);
+    alert('Profile updated successfully!');
   };
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      logout();
-      router.replace('/login');
-    } catch (err) {
-      console.error('Error signing out:', err);
-      showError('Failed to logout');
-    }
+  const handleLogout = () => {
+    logout();
+    router.replace('/login');
   };
 
   if (!user) {
     return (
-      <div className="px-4 py-8 text-center">
-        <span className="text-6xl">🔐</span>
-        <h2 className="text-xl font-semibold text-foreground mt-4">
-          Login Required
-        </h2>
-        <p className="text-muted mt-2">Please login to view your profile</p>
-        <Button onClick={() => router.push('/login')} className="mt-4">
-          Login
-        </Button>
+      <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+        <div style={{ textAlign: 'center' }}>
+          <span style={{ fontSize: '64px', display: 'block', marginBottom: '16px' }}>🔐</span>
+          <h2 style={{ fontSize: '20px', fontWeight: '600', color: '#1e293b', margin: '0 0 8px' }}>Login Required</h2>
+          <p style={{ fontSize: '14px', color: '#64748b', margin: '0 0 24px' }}>Please login to view your profile</p>
+          <button
+            onClick={() => router.push('/login')}
+            style={{
+              padding: '12px 32px',
+              backgroundColor: '#059669',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '10px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer'
+            }}
+          >
+            Login
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="px-4 py-4 pb-24">
+    <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', paddingBottom: '40px' }}>
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <button
-          onClick={() => router.back()}
-          className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center hover:border-primary/50 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5 text-foreground" />
-        </button>
-        <div className="flex-1">
-          <h1 className="text-xl font-bold text-foreground">
-            {isSetup ? 'Complete Profile' : 'Profile'}
-          </h1>
-          <p className="text-sm text-muted">
-            {isSetup ? 'Tell us about yourself' : 'Manage your account'}
-          </p>
-        </div>
-        {!isSetup && !isEditing && (
-          <button
-            onClick={() => setIsEditing(true)}
-            className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary"
-          >
-            <Edit2 className="w-5 h-5" />
-          </button>
-        )}
-      </div>
-
-      <div className="space-y-4">
-        {/* Profile Avatar */}
-        <div className="flex justify-center">
-          <div className="relative">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <span className="text-4xl text-white font-bold">
-                {formData.name ? formData.name.charAt(0).toUpperCase() : 'G'}
-              </span>
+      <div style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '16px', position: 'sticky', top: 0, zIndex: 40 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button
+              onClick={() => router.back()}
+              style={{
+                width: '40px',
+                height: '40px',
+                backgroundColor: '#f1f5f9',
+                border: 'none',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+            >
+              <ArrowLeft style={{ width: '20px', height: '20px', color: '#1e293b' }} />
+            </button>
+            <div>
+              <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b', margin: 0 }}>Profile</h1>
+              <p style={{ fontSize: '14px', color: '#64748b', marginTop: '2px' }}>Manage your account</p>
             </div>
           </div>
+          {!isEditing && (
+            <button
+              onClick={() => setIsEditing(true)}
+              style={{
+                width: '40px',
+                height: '40px',
+                backgroundColor: '#ecfdf5',
+                border: 'none',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+            >
+              <Edit2 style={{ width: '18px', height: '18px', color: '#059669' }} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div style={{ padding: '24px 16px' }}>
+        {/* Profile Avatar */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
+          <div style={{
+            width: '96px',
+            height: '96px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #059669, #10b981)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <span style={{ fontSize: '40px', fontWeight: '700', color: '#ffffff' }}>
+              {formData.name ? formData.name.charAt(0).toUpperCase() : 'G'}
+            </span>
+          </div>
         </div>
 
-        {/* Profile Form */}
-        <Card>
-          <div className="space-y-4">
-            {isEditing ? (
-              <>
-                <Input
-                  label="Full Name"
-                  placeholder="Enter your name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  leftIcon={<User className="w-5 h-5" />}
-                />
-                <Input
-                  label="Email (Optional)"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                />
-                <Input
-                  label="Village/Town"
-                  placeholder="Enter your village"
-                  value={formData.village}
-                  onChange={(e) => setFormData({ ...formData, village: e.target.value })}
-                  leftIcon={<MapPin className="w-5 h-5" />}
-                />
+        {/* Profile Form/Info */}
+        <div style={{
+          backgroundColor: '#ffffff',
+          border: '1px solid #e2e8f0',
+          borderRadius: '12px',
+          padding: '20px',
+          marginBottom: '16px'
+        }}>
+          {isEditing ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Name Input */}
+              <div>
+                <label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Full Name</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', backgroundColor: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                  <User style={{ width: '20px', height: '20px', color: '#94a3b8' }} />
+                  <input
+                    type="text"
+                    placeholder="Enter your name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    style={{
+                      flex: 1,
+                      border: 'none',
+                      outline: 'none',
+                      backgroundColor: 'transparent',
+                      fontSize: '15px',
+                      color: '#1e293b'
+                    }}
+                  />
+                </div>
+              </div>
 
-                <div className="flex gap-3 pt-2">
-                  {!isSetup && (
-                    <Button
-                      variant="outline"
-                      className="flex-1"
-                      onClick={() => {
-                        setIsEditing(false);
-                        setFormData({
-                          name: user.name || '',
-                          email: user.email || '',
-                          village: user.village || '',
-                        });
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  )}
-                  <Button
-                    className="flex-1"
-                    onClick={handleSave}
-                    isLoading={isLoading}
-                  >
-                    <Save className="w-5 h-5" />
-                    {isSetup ? 'Continue' : 'Save'}
-                  </Button>
+              {/* Email Input */}
+              <div>
+                <label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Email (Optional)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', backgroundColor: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                  <Mail style={{ width: '20px', height: '20px', color: '#94a3b8' }} />
+                  <input
+                    type="email"
+                    placeholder="Enter your email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    style={{
+                      flex: 1,
+                      border: 'none',
+                      outline: 'none',
+                      backgroundColor: 'transparent',
+                      fontSize: '15px',
+                      color: '#1e293b'
+                    }}
+                  />
                 </div>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-3 py-2">
-                  <User className="w-5 h-5 text-muted" />
-                  <div>
-                    <p className="text-xs text-muted">Name</p>
-                    <p className="text-foreground font-medium">{user.name || 'Not set'}</p>
-                  </div>
+              </div>
+
+              {/* Village Input */}
+              <div>
+                <label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Village/Town</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', backgroundColor: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                  <MapPin style={{ width: '20px', height: '20px', color: '#94a3b8' }} />
+                  <input
+                    type="text"
+                    placeholder="Enter your village"
+                    value={formData.village}
+                    onChange={(e) => setFormData({ ...formData, village: e.target.value })}
+                    style={{
+                      flex: 1,
+                      border: 'none',
+                      outline: 'none',
+                      backgroundColor: 'transparent',
+                      fontSize: '15px',
+                      color: '#1e293b'
+                    }}
+                  />
                 </div>
-                <div className="flex items-center gap-3 py-2 border-t border-border">
-                  <Phone className="w-5 h-5 text-muted" />
-                  <div>
-                    <p className="text-xs text-muted">Phone</p>
-                    <p className="text-foreground font-medium">{user.phone}</p>
-                  </div>
+              </div>
+
+              {/* Buttons */}
+              <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                <button
+                  onClick={() => {
+                    setIsEditing(false);
+                    setFormData({
+                      name: user.name || '',
+                      email: user.email || '',
+                      village: user.village || '',
+                    });
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    backgroundColor: '#f1f5f9',
+                    color: '#475569',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '10px',
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={isLoading}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    backgroundColor: isLoading ? '#94a3b8' : '#059669',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    cursor: isLoading ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <Save style={{ width: '18px', height: '18px' }} />
+                  {isLoading ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              {/* Name */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0' }}>
+                <User style={{ width: '20px', height: '20px', color: '#94a3b8' }} />
+                <div>
+                  <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>Name</p>
+                  <p style={{ fontSize: '15px', fontWeight: '500', color: '#1e293b', margin: '2px 0 0' }}>{user.name || 'Not set'}</p>
                 </div>
-                <div className="flex items-center gap-3 py-2 border-t border-border">
-                  <MapPin className="w-5 h-5 text-muted" />
-                  <div>
-                    <p className="text-xs text-muted">Village</p>
-                    <p className="text-foreground font-medium">{user.village || 'Not set'}</p>
-                  </div>
+              </div>
+
+              {/* Phone */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0', borderTop: '1px solid #f1f5f9' }}>
+                <Phone style={{ width: '20px', height: '20px', color: '#94a3b8' }} />
+                <div>
+                  <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>Phone</p>
+                  <p style={{ fontSize: '15px', fontWeight: '500', color: '#1e293b', margin: '2px 0 0' }}>{user.phone}</p>
                 </div>
-              </>
-            )}
-          </div>
-        </Card>
+              </div>
+
+              {/* Village */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0', borderTop: '1px solid #f1f5f9' }}>
+                <MapPin style={{ width: '20px', height: '20px', color: '#94a3b8' }} />
+                <div>
+                  <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>Village</p>
+                  <p style={{ fontSize: '15px', fontWeight: '500', color: '#1e293b', margin: '2px 0 0' }}>{user.village || 'Not set'}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Menu Items */}
         {!isEditing && (
           <>
-            <Card padding="none">
-              <Link
-                href="/profile/addresses"
-                className="flex items-center justify-between p-4 hover:bg-border/30 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <MapPin className="w-5 h-5 text-muted" />
-                  <div>
-                    <p className="font-medium text-foreground">Saved Addresses</p>
-                    <p className="text-xs text-muted">
-                      {user.addresses?.length || 0} addresses
-                    </p>
+            <div style={{
+              backgroundColor: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              marginBottom: '16px'
+            }}>
+              <Link href="/profile/addresses" style={{ textDecoration: 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <MapPin style={{ width: '20px', height: '20px', color: '#64748b' }} />
+                    <div>
+                      <p style={{ fontSize: '15px', fontWeight: '500', color: '#1e293b', margin: 0 }}>Saved Addresses</p>
+                      <p style={{ fontSize: '13px', color: '#64748b', margin: '2px 0 0' }}>{user.addresses?.length || 0} addresses</p>
+                    </div>
                   </div>
+                  <ChevronRight style={{ width: '20px', height: '20px', color: '#94a3b8' }} />
                 </div>
-                <ChevronRight className="w-5 h-5 text-muted" />
               </Link>
 
-              <Link
-                href="/orders"
-                className="flex items-center justify-between p-4 border-t border-border hover:bg-border/30 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <Package className="w-5 h-5 text-muted" />
-                  <div>
-                    <p className="font-medium text-foreground">My Orders</p>
-                    <p className="text-xs text-muted">View order history</p>
+              <Link href="/orders" style={{ textDecoration: 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', borderTop: '1px solid #f1f5f9' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <Package style={{ width: '20px', height: '20px', color: '#64748b' }} />
+                    <div>
+                      <p style={{ fontSize: '15px', fontWeight: '500', color: '#1e293b', margin: 0 }}>My Orders</p>
+                      <p style={{ fontSize: '13px', color: '#64748b', margin: '2px 0 0' }}>View order history</p>
+                    </div>
                   </div>
+                  <ChevronRight style={{ width: '20px', height: '20px', color: '#94a3b8' }} />
                 </div>
-                <ChevronRight className="w-5 h-5 text-muted" />
               </Link>
-            </Card>
+            </div>
 
             {/* Admin Access */}
             {user.type === 'admin' && (
-              <Link href="/admin/dashboard">
-                <Card className="bg-gradient-to-r from-secondary/20 to-secondary/10 border-secondary/30">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-foreground">Admin Dashboard</p>
-                      <p className="text-sm text-muted">Manage orders & products</p>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-secondary" />
+              <Link href="/admin/dashboard" style={{ textDecoration: 'none' }}>
+                <div style={{
+                  backgroundColor: '#fef3c7',
+                  border: '1px solid #fcd34d',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '16px'
+                }}>
+                  <div>
+                    <p style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Admin Dashboard</p>
+                    <p style={{ fontSize: '13px', color: '#78716c', margin: '2px 0 0' }}>Manage orders & products</p>
                   </div>
-                </Card>
+                  <ChevronRight style={{ width: '20px', height: '20px', color: '#d97706' }} />
+                </div>
               </Link>
             )}
 
             {/* Logout */}
-            <Button
-              variant="danger"
-              className="w-full"
+            <button
               onClick={handleLogout}
+              style={{
+                width: '100%',
+                padding: '16px',
+                backgroundColor: '#fef2f2',
+                color: '#dc2626',
+                border: '1px solid #fecaca',
+                borderRadius: '12px',
+                fontSize: '15px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
             >
-              <LogOut className="w-5 h-5" />
+              <LogOut style={{ width: '18px', height: '18px' }} />
               Logout
-            </Button>
-          </>
-        )}
+            </button>
 
-        {/* App Info */}
-        {!isEditing && (
-          <div className="text-center pt-4">
-            <p className="text-muted text-sm">Gramam v1.0.0</p>
-            <p className="text-xs text-muted mt-1">
-              Serving Vaniyambadi & Thirupathur District
-            </p>
-          </div>
+            {/* App Info */}
+            <div style={{ textAlign: 'center', marginTop: '32px' }}>
+              <p style={{ fontSize: '14px', color: '#94a3b8', margin: 0 }}>Gramam v1.0.0</p>
+              <p style={{ fontSize: '12px', color: '#94a3b8', margin: '4px 0 0' }}>Serving Vaniyambadi & Thirupathur District</p>
+            </div>
+          </>
         )}
       </div>
     </div>

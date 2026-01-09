@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import {
   ShoppingBag,
@@ -9,227 +9,201 @@ import {
   IndianRupee,
   Users,
   ClipboardList,
-  TrendingUp,
   Clock,
   ChevronRight,
 } from 'lucide-react';
-import Card from '@/components/ui/Card';
-import Badge from '@/components/ui/Badge';
-import StatsCard from '@/components/admin/StatsCard';
-import { db } from '@/lib/firebase';
-import { collection, query, where, orderBy, limit, onSnapshot, Timestamp } from 'firebase/firestore';
-import { Order } from '@/types';
-import { formatPrice, formatRelativeTime } from '@/lib/utils';
+
+// Sample data for demo
+const sampleOrders = [
+  { id: 'ORD001', type: 'shopping', customer: 'Ravi Kumar', village: 'Vaniyambadi', amount: 450, status: 'pending', time: '5 mins ago' },
+  { id: 'ORD002', type: 'transport', customer: 'Priya S', village: 'Ambur', amount: 85, status: 'confirmed', time: '15 mins ago' },
+  { id: 'ORD003', type: 'service', customer: 'Mohan R', village: 'Jolarpet', amount: 500, status: 'in_progress', time: '30 mins ago' },
+  { id: 'ORD004', type: 'shopping', customer: 'Lakshmi', village: 'Tirupattur', amount: 320, status: 'delivered', time: '1 hour ago' },
+  { id: 'ORD005', type: 'transport', customer: 'Anand K', village: 'Vaniyambadi', amount: 120, status: 'completed', time: '2 hours ago' },
+];
+
+const typeIcons: Record<string, string> = {
+  shopping: '📦',
+  transport: '🛵',
+  service: '🔧',
+};
+
+const statusColors: Record<string, { bg: string; text: string }> = {
+  pending: { bg: '#fef3c7', text: '#d97706' },
+  confirmed: { bg: '#dbeafe', text: '#2563eb' },
+  in_progress: { bg: '#e0e7ff', text: '#4f46e5' },
+  delivered: { bg: '#dcfce7', text: '#16a34a' },
+  completed: { bg: '#dcfce7', text: '#16a34a' },
+  cancelled: { bg: '#fee2e2', text: '#dc2626' },
+};
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState({
-    todayOrders: 0,
-    todayRevenue: 0,
-    pendingOrders: 0,
-    totalUsers: 0,
-  });
-  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    // Get today's start
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayTimestamp = Timestamp.fromDate(today);
-
-    // Subscribe to orders
-    const ordersRef = collection(db, 'orders');
-    const recentQuery = query(ordersRef, orderBy('createdAt', 'desc'), limit(10));
-
-    const unsubscribe = onSnapshot(recentQuery, (snapshot) => {
-      const orders = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Order[];
-
-      setRecentOrders(orders);
-
-      // Calculate stats
-      const todayOrders = orders.filter(
-        (o) => o.createdAt.toMillis() >= todayTimestamp.toMillis()
-      );
-      const pendingOrders = orders.filter((o) =>
-        ['pending', 'confirmed', 'assigned'].includes(o.status)
-      );
-      const todayRevenue = todayOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-
-      setStats({
-        todayOrders: todayOrders.length,
-        todayRevenue,
-        pendingOrders: pendingOrders.length,
-        totalUsers: 0, // Would need separate query
-      });
-
-      setIsLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const orderTypeIcons = {
-    shopping: ShoppingBag,
-    transport: Navigation,
-    service: Wrench,
+  const stats = {
+    todayOrders: 24,
+    todayRevenue: 12500,
+    pendingOrders: 8,
+    totalUsers: 156,
   };
 
-  const statusVariants: Record<string, 'warning' | 'primary' | 'success' | 'danger' | 'secondary'> = {
-    pending: 'warning',
-    confirmed: 'secondary',
-    assigned: 'secondary',
-    picked: 'primary',
-    onway: 'primary',
-    delivered: 'success',
-    completed: 'success',
-    cancelled: 'danger',
+  const orderBreakdown = {
+    shopping: 12,
+    transport: 8,
+    service: 4,
   };
 
   return (
-    <div className="space-y-6">
+    <div>
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted">Overview of your business</p>
+      <div style={{ marginBottom: '24px' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#1e293b', margin: 0 }}>Dashboard</h1>
+        <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>Overview of your business</p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard
-          title="Today's Orders"
-          value={stats.todayOrders}
-          icon={ClipboardList}
-          color="primary"
-          trend={{ value: 12, isPositive: true }}
-        />
-        <StatsCard
-          title="Today's Revenue"
-          value={stats.todayRevenue}
-          icon={IndianRupee}
-          color="success"
-          isCurrency
-          trend={{ value: 8, isPositive: true }}
-        />
-        <StatsCard
-          title="Pending Orders"
-          value={stats.pendingOrders}
-          icon={Clock}
-          color="warning"
-        />
-        <StatsCard
-          title="Total Users"
-          value={stats.totalUsers}
-          icon={Users}
-          color="secondary"
-        />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
+        {/* Today's Orders */}
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+            <div>
+              <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>Today's Orders</p>
+              <p style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', margin: '8px 0 0' }}>{stats.todayOrders}</p>
+            </div>
+            <div style={{ width: '44px', height: '44px', backgroundColor: '#dbeafe', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ClipboardList style={{ width: '22px', height: '22px', color: '#2563eb' }} />
+            </div>
+          </div>
+          <p style={{ fontSize: '12px', color: '#16a34a', marginTop: '8px' }}>+12% from yesterday</p>
+        </div>
+
+        {/* Today's Revenue */}
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+            <div>
+              <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>Today's Revenue</p>
+              <p style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', margin: '8px 0 0' }}>Rs {stats.todayRevenue.toLocaleString()}</p>
+            </div>
+            <div style={{ width: '44px', height: '44px', backgroundColor: '#dcfce7', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <IndianRupee style={{ width: '22px', height: '22px', color: '#16a34a' }} />
+            </div>
+          </div>
+          <p style={{ fontSize: '12px', color: '#16a34a', marginTop: '8px' }}>+8% from yesterday</p>
+        </div>
+
+        {/* Pending Orders */}
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+            <div>
+              <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>Pending Orders</p>
+              <p style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', margin: '8px 0 0' }}>{stats.pendingOrders}</p>
+            </div>
+            <div style={{ width: '44px', height: '44px', backgroundColor: '#fef3c7', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Clock style={{ width: '22px', height: '22px', color: '#d97706' }} />
+            </div>
+          </div>
+          <p style={{ fontSize: '12px', color: '#d97706', marginTop: '8px' }}>Needs attention</p>
+        </div>
+
+        {/* Total Users */}
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+            <div>
+              <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>Total Users</p>
+              <p style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', margin: '8px 0 0' }}>{stats.totalUsers}</p>
+            </div>
+            <div style={{ width: '44px', height: '44px', backgroundColor: '#f3e8ff', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Users style={{ width: '22px', height: '22px', color: '#9333ea' }} />
+            </div>
+          </div>
+          <p style={{ fontSize: '12px', color: '#16a34a', marginTop: '8px' }}>+5 new this week</p>
+        </div>
       </div>
 
       {/* Order Type Breakdown */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-orange-500/20 flex items-center justify-center">
-              <ShoppingBag className="w-6 h-6 text-orange-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">
-                {recentOrders.filter((o) => o.type === 'shopping').length}
-              </p>
-              <p className="text-sm text-muted">Shopping Orders</p>
-            </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ width: '48px', height: '48px', backgroundColor: '#fef3c7', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ShoppingBag style={{ width: '24px', height: '24px', color: '#f97316' }} />
           </div>
-        </Card>
-        <Card>
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
-              <Navigation className="w-6 h-6 text-blue-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">
-                {recentOrders.filter((o) => o.type === 'transport').length}
-              </p>
-              <p className="text-sm text-muted">Transport Orders</p>
-            </div>
+          <div>
+            <p style={{ fontSize: '24px', fontWeight: '700', color: '#1e293b', margin: 0 }}>{orderBreakdown.shopping}</p>
+            <p style={{ fontSize: '13px', color: '#64748b', margin: '2px 0 0' }}>Shopping Orders</p>
           </div>
-        </Card>
-        <Card>
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
-              <Wrench className="w-6 h-6 text-green-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">
-                {recentOrders.filter((o) => o.type === 'service').length}
-              </p>
-              <p className="text-sm text-muted">Service Orders</p>
-            </div>
+        </div>
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ width: '48px', height: '48px', backgroundColor: '#dbeafe', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Navigation style={{ width: '24px', height: '24px', color: '#3b82f6' }} />
           </div>
-        </Card>
+          <div>
+            <p style={{ fontSize: '24px', fontWeight: '700', color: '#1e293b', margin: 0 }}>{orderBreakdown.transport}</p>
+            <p style={{ fontSize: '13px', color: '#64748b', margin: '2px 0 0' }}>Transport Orders</p>
+          </div>
+        </div>
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ width: '48px', height: '48px', backgroundColor: '#dcfce7', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Wrench style={{ width: '24px', height: '24px', color: '#22c55e' }} />
+          </div>
+          <div>
+            <p style={{ fontSize: '24px', fontWeight: '700', color: '#1e293b', margin: 0 }}>{orderBreakdown.service}</p>
+            <p style={{ fontSize: '13px', color: '#64748b', margin: '2px 0 0' }}>Service Orders</p>
+          </div>
+        </div>
       </div>
 
       {/* Recent Orders */}
-      <Card>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-foreground">Recent Orders</h2>
-          <Link
-            href="/admin/orders"
-            className="text-sm text-primary flex items-center gap-1 hover:underline"
-          >
+      <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Recent Orders</h2>
+          <Link href="/admin/orders" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '14px', color: '#059669', fontWeight: '500' }}>
             View All
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight style={{ width: '16px', height: '16px' }} />
           </Link>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr className="border-b border-border">
-                <th className="text-left py-3 px-4 text-sm font-medium text-muted">Order ID</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-muted">Type</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-muted">Customer</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-muted">Amount</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-muted">Status</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-muted">Time</th>
+              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                <th style={{ textAlign: 'left', padding: '12px 16px', fontSize: '13px', fontWeight: '500', color: '#64748b' }}>Order ID</th>
+                <th style={{ textAlign: 'left', padding: '12px 16px', fontSize: '13px', fontWeight: '500', color: '#64748b' }}>Type</th>
+                <th style={{ textAlign: 'left', padding: '12px 16px', fontSize: '13px', fontWeight: '500', color: '#64748b' }}>Customer</th>
+                <th style={{ textAlign: 'left', padding: '12px 16px', fontSize: '13px', fontWeight: '500', color: '#64748b' }}>Amount</th>
+                <th style={{ textAlign: 'left', padding: '12px 16px', fontSize: '13px', fontWeight: '500', color: '#64748b' }}>Status</th>
+                <th style={{ textAlign: 'left', padding: '12px 16px', fontSize: '13px', fontWeight: '500', color: '#64748b' }}>Time</th>
               </tr>
             </thead>
             <tbody>
-              {recentOrders.slice(0, 5).map((order) => {
-                const Icon = orderTypeIcons[order.type];
+              {sampleOrders.map((order) => {
+                const statusColor = statusColors[order.status] || { bg: '#f1f5f9', text: '#64748b' };
                 return (
-                  <tr
-                    key={order.id}
-                    className="border-b border-border hover:bg-border/30 cursor-pointer"
-                    onClick={() => window.location.href = `/admin/orders/${order.id}`}
-                  >
-                    <td className="py-3 px-4 text-sm font-medium text-foreground">
-                      #{order.id.slice(-8)}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <Icon className="w-4 h-4 text-muted" />
-                        <span className="text-sm text-foreground capitalize">{order.type}</span>
+                  <tr key={order.id} style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}>
+                    <td style={{ padding: '14px 16px', fontSize: '14px', fontWeight: '500', color: '#1e293b' }}>#{order.id}</td>
+                    <td style={{ padding: '14px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '16px' }}>{typeIcons[order.type]}</span>
+                        <span style={{ fontSize: '14px', color: '#1e293b', textTransform: 'capitalize' }}>{order.type}</span>
                       </div>
                     </td>
-                    <td className="py-3 px-4">
+                    <td style={{ padding: '14px 16px' }}>
                       <div>
-                        <p className="text-sm text-foreground">{order.userName}</p>
-                        <p className="text-xs text-muted">{order.userVillage}</p>
+                        <p style={{ fontSize: '14px', color: '#1e293b', margin: 0 }}>{order.customer}</p>
+                        <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0' }}>{order.village}</p>
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-sm font-medium text-foreground">
-                      {formatPrice(order.totalAmount)}
+                    <td style={{ padding: '14px 16px', fontSize: '14px', fontWeight: '500', color: '#1e293b' }}>Rs {order.amount}</td>
+                    <td style={{ padding: '14px 16px' }}>
+                      <span style={{
+                        padding: '4px 10px',
+                        backgroundColor: statusColor.bg,
+                        color: statusColor.text,
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                        textTransform: 'capitalize'
+                      }}>
+                        {order.status.replace('_', ' ')}
+                      </span>
                     </td>
-                    <td className="py-3 px-4">
-                      <Badge variant={statusVariants[order.status]} size="sm">
-                        {order.status}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4 text-sm text-muted">
-                      {formatRelativeTime(order.createdAt)}
-                    </td>
+                    <td style={{ padding: '14px 16px', fontSize: '13px', color: '#64748b' }}>{order.time}</td>
                   </tr>
                 );
               })}
@@ -237,13 +211,13 @@ export default function AdminDashboard() {
           </table>
         </div>
 
-        {recentOrders.length === 0 && (
-          <div className="text-center py-8">
-            <ClipboardList className="w-12 h-12 text-muted mx-auto mb-3" />
-            <p className="text-muted">No orders yet</p>
+        {sampleOrders.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '32px' }}>
+            <ClipboardList style={{ width: '48px', height: '48px', color: '#94a3b8', margin: '0 auto 12px' }} />
+            <p style={{ fontSize: '14px', color: '#64748b' }}>No orders yet</p>
           </div>
         )}
-      </Card>
+      </div>
     </div>
   );
 }
