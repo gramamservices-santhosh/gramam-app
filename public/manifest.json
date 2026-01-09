@@ -1,0 +1,49 @@
+{
+  "name": "Gramam - Village Super App",
+  "short_name": "Gramam",
+  "description": "Your Village, Your Services - Thirupathur District. Order groceries, book rides, and access services from Vaniyambadi.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1A1A2E",
+  "theme_color": "#FF6B35",
+  "orientation": "portrait",
+  "scope": "/",
+  "categories": ["shopping", "lifestyle", "transportation"],
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Shop",
+      "short_name": "Shop",
+      "description": "Browse and order products",
+      "url": "/shop",
+      "icons": [{ "src": "/icons/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Book Ride",
+      "short_name": "Ride",
+      "description": "Book bike or auto",
+      "url": "/ride",
+      "icons": [{ "src": "/icons/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "My Orders",
+      "short_name": "Orders",
+      "description": "View order history",
+      "url": "/orders",
+      "icons": [{ "src": "/icons/icon.svg", "sizes": "any" }]
+    }
+  ]
+}
