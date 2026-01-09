@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Phone, ArrowRight, User, MapPin, ChevronDown, Eye, EyeOff } from 'lucide-react';
+import { Phone, ArrowRight, User, MapPin, ChevronDown, Mail } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/components/ui/Toast';
 import { Timestamp } from 'firebase/firestore';
@@ -22,16 +22,16 @@ const VILLAGES = [
   'Yelagiri',
 ];
 
-export default function LoginPage() {
+export default function SignupPage() {
   const router = useRouter();
   const { setUser } = useAuthStore();
   const { success, error: showError } = useToast();
 
-  const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [village, setVillage] = useState('Vaniyambadi');
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
   const handlePhoneChange = (value: string) => {
     const cleaned = value.replace(/\D/g, '');
@@ -40,16 +40,16 @@ export default function LoginPage() {
     }
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!phone || phone.length !== 10) {
-      showError('Please enter a valid 10-digit phone number');
-      return;
-    }
 
     if (!name.trim()) {
       showError('Please enter your name');
+      return;
+    }
+
+    if (!phone || phone.length !== 10) {
+      showError('Please enter a valid 10-digit phone number');
       return;
     }
 
@@ -61,6 +61,7 @@ export default function LoginPage() {
       id: `demo_${phone}`,
       phone: `+91${phone}`,
       name: name.trim(),
+      email: email || undefined,
       type: 'customer' as const,
       village: village,
       addresses: [],
@@ -70,7 +71,7 @@ export default function LoginPage() {
     };
 
     setUser(user);
-    success(`Welcome, ${name}!`);
+    success(`Welcome to Gramam, ${name}!`);
     router.replace('/home');
     setIsLoading(false);
   };
@@ -81,14 +82,14 @@ export default function LoginPage() {
       <div className="hidden lg:flex lg:w-1/2 bg-emerald-600 items-center justify-center p-12">
         <div className="max-w-md text-center">
           <div className="text-8xl mb-8">🏘️</div>
-          <h2 className="text-3xl font-bold text-white mb-4">Welcome to Gramam</h2>
+          <h2 className="text-3xl font-bold text-white mb-4">Join Gramam</h2>
           <p className="text-emerald-100 text-lg">
-            Your one-stop solution for village services - shopping, transport, repairs, and more.
+            Get access to village services - shopping, transport, repairs, events and more.
           </p>
         </div>
       </div>
 
-      {/* Right Side - Login Form */}
+      {/* Right Side - Signup Form */}
       <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
@@ -102,23 +103,23 @@ export default function LoginPage() {
           {/* Form Card */}
           <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 p-8">
             <div className="mb-8">
-              <h2 className="text-2xl font-bold text-slate-800">Log in</h2>
+              <h2 className="text-2xl font-bold text-slate-800">Create account</h2>
               <p className="text-slate-500 mt-2">
-                Welcome back! Enter your details to continue.
+                Sign up to get started with Gramam services.
               </p>
             </div>
 
-            <form onSubmit={handleLogin} className="space-y-5">
+            <form onSubmit={handleSignup} className="space-y-4">
               {/* Name Input */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Your Name
+                  Full Name *
                 </label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                   <input
                     type="text"
-                    placeholder="Enter your name"
+                    placeholder="Enter your full name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full h-12 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
@@ -129,7 +130,7 @@ export default function LoginPage() {
               {/* Phone Input */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Phone Number
+                  Phone Number *
                 </label>
                 <div className="flex gap-2">
                   <div className="flex items-center justify-center w-16 h-12 bg-slate-50 border border-slate-200 rounded-xl text-slate-600 font-medium text-sm">
@@ -150,10 +151,27 @@ export default function LoginPage() {
                 </div>
               </div>
 
+              {/* Email Input (Optional) */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Email <span className="text-slate-400">(Optional)</span>
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input
+                    type="email"
+                    placeholder="your@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full h-12 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                  />
+                </div>
+              </div>
+
               {/* Village Select */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Your Village/Town
+                  Your Village/Town *
                 </label>
                 <div className="relative">
                   <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -172,15 +190,17 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Forgot Password */}
-              <div className="flex justify-end">
-                <Link
-                  href="/forgot-password"
-                  className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
-                >
-                  Forgot password?
+              {/* Terms */}
+              <p className="text-xs text-slate-500">
+                By signing up, you agree to our{' '}
+                <Link href="/terms" className="text-emerald-600 hover:underline">
+                  Terms of Service
+                </Link>{' '}
+                and{' '}
+                <Link href="/privacy" className="text-emerald-600 hover:underline">
+                  Privacy Policy
                 </Link>
-              </div>
+              </p>
 
               {/* Submit Button */}
               <button
@@ -192,7 +212,7 @@ export default function LoginPage() {
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
                   <>
-                    Continue
+                    Create Account
                     <ArrowRight className="w-5 h-5" />
                   </>
                 )}
@@ -206,11 +226,11 @@ export default function LoginPage() {
               <div className="flex-1 h-px bg-slate-200" />
             </div>
 
-            {/* Sign Up Link */}
+            {/* Login Link */}
             <p className="text-center text-slate-600">
-              Don't have an account?{' '}
-              <Link href="/signup" className="text-emerald-600 hover:text-emerald-700 font-semibold">
-                Sign up
+              Already have an account?{' '}
+              <Link href="/login" className="text-emerald-600 hover:text-emerald-700 font-semibold">
+                Log in
               </Link>
             </p>
           </div>

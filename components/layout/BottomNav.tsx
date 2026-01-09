@@ -20,7 +20,7 @@ export default function BottomNav() {
   const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-background border-t border-border safe-area-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 safe-area-bottom">
       <div className="max-w-lg mx-auto px-2">
         <div className="flex items-center justify-around h-16">
           {navItems.map((item) => {
@@ -34,8 +34,8 @@ export default function BottomNav() {
                 className={cn(
                   'flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg transition-colors min-h-0 min-w-0',
                   isActive
-                    ? 'text-primary'
-                    : 'text-muted hover:text-foreground'
+                    ? 'text-emerald-600'
+                    : 'text-slate-400 hover:text-slate-600'
                 )}
               >
                 <div className="relative">
@@ -44,7 +44,7 @@ export default function BottomNav() {
                     strokeWidth={isActive ? 2.5 : 2}
                   />
                   {item.href === '/shop' && cartCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-accent rounded-full text-[10px] text-white font-semibold flex items-center justify-center px-1">
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-orange-500 rounded-full text-[10px] text-white font-semibold flex items-center justify-center px-1">
                       {cartCount > 9 ? '9+' : cartCount}
                     </span>
                   )}

@@ -11,14 +11,14 @@ export default function Header() {
   const initial = firstName.charAt(0).toUpperCase();
 
   return (
-    <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-lg border-b border-border/50">
+    <header className="sticky top-0 z-40 bg-white border-b border-slate-200">
       <div className="px-4 py-3 flex items-center justify-between">
         {/* Left: Profile & Location */}
         <div className="flex items-center gap-3">
           {isAuthenticated ? (
             <Link
               href="/profile"
-              className="w-10 h-10 rounded-full bg-primary flex items-center justify-center"
+              className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center"
             >
               <span className="text-white font-semibold text-sm">
                 {initial}
@@ -27,18 +27,18 @@ export default function Header() {
           ) : (
             <Link
               href="/login"
-              className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center"
+              className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center"
             >
               <span className="text-lg">🏘️</span>
             </Link>
           )}
           <button className="flex flex-col items-start min-h-0 min-w-0">
-            <span className="text-xs text-muted">Deliver to</span>
-            <span className="flex items-center gap-1 text-sm font-medium text-foreground">
+            <span className="text-xs text-slate-500">Deliver to</span>
+            <span className="flex items-center gap-1 text-sm font-medium text-slate-800">
               <span className="truncate max-w-[120px]">
                 {user?.village || 'Select location'}
               </span>
-              <ChevronDown className="w-4 h-4 text-muted flex-shrink-0" />
+              <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
             </span>
           </button>
         </div>
@@ -46,15 +46,15 @@ export default function Header() {
         {/* Center: Logo */}
         <Link href="/home" className="flex items-center gap-2">
           <span className="text-xl">🏘️</span>
-          <span className="text-lg font-bold text-foreground">
+          <span className="text-lg font-bold text-slate-800">
             Gramam
           </span>
         </Link>
 
         {/* Right: Notifications */}
-        <button className="relative w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center hover:bg-card-elevated transition-colors min-h-0 min-w-0">
-          <Bell className="w-5 h-5 text-foreground" />
-          <span className="absolute top-2 right-2 w-2 h-2 bg-accent rounded-full" />
+        <button className="relative w-10 h-10 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center hover:bg-slate-100 transition-colors min-h-0 min-w-0">
+          <Bell className="w-5 h-5 text-slate-600" />
+          <span className="absolute top-2 right-2 w-2 h-2 bg-emerald-500 rounded-full" />
         </button>
       </div>
     </header>

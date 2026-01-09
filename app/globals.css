@@ -2,25 +2,25 @@
 @import "tailwindcss";
 
 :root {
-  /* Professional Color Palette */
-  --background: #0F172A;
-  --background-secondary: #1E293B;
-  --foreground: #F8FAFC;
-  --foreground-secondary: #CBD5E1;
-  --primary: #3B82F6;
-  --primary-dark: #2563EB;
-  --primary-light: #60A5FA;
+  /* Light Theme - Professional Color Palette */
+  --background: #F8FAFC;
+  --background-secondary: #F1F5F9;
+  --foreground: #1E293B;
+  --foreground-secondary: #475569;
+  --primary: #059669;
+  --primary-dark: #047857;
+  --primary-light: #10B981;
   --accent: #F97316;
   --accent-light: #FB923C;
   --success: #22C55E;
   --danger: #EF4444;
   --warning: #EAB308;
-  --card: #1E293B;
-  --card-elevated: #334155;
-  --border: #334155;
-  --border-light: #475569;
-  --muted: #94A3B8;
-  --muted-light: #64748B;
+  --card: #FFFFFF;
+  --card-elevated: #FFFFFF;
+  --border: #E2E8F0;
+  --border-light: #CBD5E1;
+  --muted: #64748B;
+  --muted-light: #94A3B8;
 
   /* Spacing System (8px base) */
   --space-1: 4px;
@@ -94,12 +94,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: var(--border-light);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--border-light);
+  background: var(--muted);
 }
 
 /* Hide scrollbar on mobile */
@@ -138,14 +138,17 @@ input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
   -webkit-text-fill-color: var(--foreground);
-  -webkit-box-shadow: 0 0 0px 1000px var(--card) inset;
+  -webkit-box-shadow: 0 0 0px 1000px var(--background-secondary) inset;
   transition: background-color 5000s ease-in-out 0s;
 }
 
 /* Focus styles */
 input:focus,
 select:focus,
-textarea:focus,
+textarea:focus {
+  outline: none;
+}
+
 button:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
@@ -189,7 +192,7 @@ a,
 }
 
 .skeleton {
-  background: linear-gradient(90deg, var(--card) 25%, var(--border) 50%, var(--card) 75%);
+  background: linear-gradient(90deg, var(--border) 25%, var(--background-secondary) 50%, var(--border) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
