@@ -14,12 +14,14 @@ interface OrderCardProps {
 const orderIcons = {
   shopping: Package,
   transport: Navigation,
+  ride: Navigation,
   service: Wrench,
 };
 
-const orderEmojis = {
-  shopping: '📦',
+const orderEmojis: Record<string, string> = {
+  shopping: '🛒',
   transport: '🛵',
+  ride: '🛵',
   service: '🔧',
 };
 
@@ -55,7 +57,8 @@ export default function OrderCard({ order }: OrderCardProps) {
           ? 'Custom Order'
           : `${order.items?.length || 0} items`;
       case 'transport':
-        return `${order.transportType === 'bike' ? 'Bike' : 'Auto'} Ride`;
+      case 'ride':
+        return `${(order as any).vehicleType === 'bike' ? 'Bike' : 'Auto'} Ride`;
       case 'service':
         return order.serviceOption || 'Service Request';
       default:
@@ -70,6 +73,7 @@ export default function OrderCard({ order }: OrderCardProps) {
           ? order.customOrderDescription?.slice(0, 50) + '...'
           : order.items?.map((i) => i.name).join(', ').slice(0, 50) + '...';
       case 'transport':
+      case 'ride':
         return `${order.pickup?.name} → ${order.drop?.name}`;
       case 'service':
         return order.description?.slice(0, 50) || order.serviceAddress?.village;

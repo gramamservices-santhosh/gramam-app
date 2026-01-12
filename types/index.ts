@@ -63,12 +63,12 @@ export interface CartItem {
 }
 
 // Order Types
-export type OrderType = 'shopping' | 'transport' | 'service';
+export type OrderType = 'shopping' | 'transport' | 'ride' | 'service';
 export type OrderStatus = 'pending' | 'confirmed' | 'assigned' | 'picked' | 'onway' | 'delivered' | 'completed' | 'cancelled';
 export type PaymentMethod = 'cod' | 'online';
 export type PaymentStatus = 'pending' | 'paid';
 export type VehicleType = 'bike' | 'auto';
-export type ServiceType = 'plumbing' | 'electrical' | 'medical' | 'funeral' | 'festival' | 'decoration';
+export type ServiceType = 'plumbing' | 'electrical' | 'medical' | 'funeral' | 'festival' | 'decoration' | 'drivers' | 'agricultural';
 
 export interface OrderTimeline {
   status: OrderStatus;

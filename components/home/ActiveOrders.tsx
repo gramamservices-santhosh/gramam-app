@@ -14,6 +14,7 @@ interface ActiveOrdersProps {
 const orderIcons = {
   shopping: Package,
   transport: Navigation,
+  ride: Navigation,
   service: Wrench,
 };
 
@@ -65,7 +66,7 @@ export default function ActiveOrders({ orders }: ActiveOrdersProps) {
                     <span className="text-sm font-medium text-foreground truncate">
                       {order.type === 'shopping'
                         ? `${order.items?.length || 0} items`
-                        : order.type === 'transport'
+                        : order.type === 'transport' || order.type === 'ride'
                         ? `${order.pickup?.name} → ${order.drop?.name}`
                         : order.serviceOption}
                     </span>

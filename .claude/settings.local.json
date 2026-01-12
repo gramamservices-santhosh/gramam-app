@@ -15,7 +15,8 @@
       "Bash(gh auth:*)",
       "Bash(timeout:*)",
       "Bash(git fetch:*)",
-      "Bash(npx vercel:*)"
+      "Bash(npx vercel:*)",
+      "Bash(find:*)"
     ]
   }
 }

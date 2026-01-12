@@ -10,6 +10,7 @@ import { db, auth } from '@/lib/firebase';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { ServiceType } from '@/types';
+import AdModal from '@/components/ads/AdModal';
 
 export default function ServiceTypePage() {
   const params = useParams();
@@ -30,6 +31,7 @@ export default function ServiceTypePage() {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [authReady, setAuthReady] = useState(false);
+  const [showAd, setShowAd] = useState(false);
 
   // Wait for Firebase Auth to initialize
   useEffect(() => {
@@ -59,7 +61,8 @@ export default function ServiceTypePage() {
     );
   }
 
-  const handleBookService = async () => {
+  // Validate and show ad
+  const handleShowAd = () => {
     // Wait for auth to be ready
     if (!authReady) {
       setError('Please wait, loading...');
@@ -87,9 +90,23 @@ export default function ServiceTypePage() {
       return;
     }
 
+    // Show ad before booking
+    setShowAd(true);
+  };
+
+  // Actually book after ad is watched
+  const handleBookService = async () => {
+    setShowAd(false);
     setIsLoading(true);
 
     try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        setError('Please login to book service.');
+        setTimeout(() => router.push('/login'), 1500);
+        return;
+      }
+
       const orderId = generateOrderId();
       const option = service.options.find((o) => o.id === selectedOption);
 
@@ -140,6 +157,11 @@ export default function ServiceTypePage() {
 
   return (
     <div style={{ padding: '16px', paddingBottom: '180px' }}>
+      {/* Ad Modal */}
+      {showAd && (
+        <AdModal onComplete={handleBookService} />
+      )}
+
       {/* Error Toast */}
       {error && (
         <div style={{ position: 'fixed', top: '16px', left: '16px', right: '16px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '12px 16px', zIndex: 100 }}>
@@ -323,7 +345,7 @@ export default function ServiceTypePage() {
             </p>
           </div>
           <button
-            onClick={handleBookService}
+            onClick={handleShowAd}
             disabled={isLoading || !selectedOption}
             style={{
               width: '100%',

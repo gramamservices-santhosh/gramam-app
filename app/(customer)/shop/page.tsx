@@ -9,6 +9,7 @@ import { generateOrderId } from '@/lib/utils';
 import { db, auth } from '@/lib/firebase';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
+import AdModal from '@/components/ads/AdModal';
 
 export default function ShopPage() {
   const router = useRouter();
@@ -24,6 +25,7 @@ export default function ShopPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [authReady, setAuthReady] = useState(false);
+  const [showAd, setShowAd] = useState(false);
 
   // Wait for Firebase Auth to initialize
   useEffect(() => {
@@ -36,7 +38,8 @@ export default function ShopPage() {
     return () => unsubscribe();
   }, [user, router]);
 
-  const handleSubmitOrder = async () => {
+  // Validate before showing ad
+  const handleShowAd = () => {
     // Wait for auth to be ready
     if (!authReady) {
       setError('Please wait, loading...');
@@ -64,9 +67,23 @@ export default function ShopPage() {
       return;
     }
 
+    // Show ad before booking
+    setShowAd(true);
+  };
+
+  // Actually submit after ad is watched
+  const handleSubmitOrder = async () => {
+    setShowAd(false);
     setIsLoading(true);
 
     try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        setError('Please login to place order');
+        setTimeout(() => router.push('/login'), 1500);
+        return;
+      }
+
       const orderId = generateOrderId();
 
       const order: Record<string, any> = {
@@ -131,6 +148,11 @@ export default function ShopPage() {
 
   return (
     <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', paddingBottom: '100px' }}>
+      {/* Ad Modal */}
+      {showAd && (
+        <AdModal onComplete={handleSubmitOrder} />
+      )}
+
       {/* Error Toast */}
       {error && (
         <div style={{ position: 'fixed', top: '16px', left: '16px', right: '16px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '12px 16px', zIndex: 100 }}>
@@ -279,7 +301,7 @@ export default function ShopPage() {
       <div style={{ position: 'fixed', bottom: '70px', left: 0, right: 0, padding: '16px', backgroundColor: '#f8fafc' }}>
         <div style={{ maxWidth: '480px', margin: '0 auto' }}>
           <button
-            onClick={handleSubmitOrder}
+            onClick={handleShowAd}
             disabled={isLoading || !orderList.trim()}
             style={{
               width: '100%',

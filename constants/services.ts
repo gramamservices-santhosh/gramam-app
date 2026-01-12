@@ -85,6 +85,34 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
       { id: 'car', name: 'Car Decoration', description: 'Wedding car decoration' },
     ],
   },
+  {
+    id: 'drivers',
+    name: 'Drivers',
+    icon: '🚗',
+    description: 'Professional drivers for your needs',
+    options: [
+      { id: 'acting-driver', name: 'Acting Driver', description: 'Driver for your personal vehicle' },
+      { id: 'outstation', name: 'Outstation Driver', description: 'Driver for long distance trips' },
+      { id: 'wedding-driver', name: 'Wedding Car Driver', description: 'Driver for wedding functions' },
+      { id: 'night-driver', name: 'Night Driver', description: 'Driver for night travel' },
+      { id: 'commercial', name: 'Commercial Driver', description: 'Driver for goods transport' },
+      { id: 'temporary', name: 'Temporary Driver', description: 'Driver for few days/weeks' },
+    ],
+  },
+  {
+    id: 'agricultural',
+    name: 'Agricultural',
+    icon: '🚜',
+    description: 'Agricultural equipment and workers',
+    options: [
+      { id: 'tractor', name: 'Tractor', description: 'Tractor for ploughing and farming' },
+      { id: 'jcb', name: 'JCB/Excavator', description: 'JCB for digging and earth work' },
+      { id: 'harvester', name: 'Harvester', description: 'Combine harvester for crops' },
+      { id: 'tiller', name: 'Power Tiller', description: 'Power tiller for small farms' },
+      { id: 'farm-workers', name: 'Farm Workers', description: 'Daily wage farm laborers' },
+      { id: 'sprayer', name: 'Sprayer Service', description: 'Pesticide and fertilizer spraying' },
+    ],
+  },
 ];
 
 // Main service types for home page

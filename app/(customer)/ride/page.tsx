@@ -1,10 +1,16 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, ArrowUpDown, MapPin, Navigation, ChevronRight } from 'lucide-react';
 import { LOCATIONS } from '@/constants/locations';
+import { useAuthStore } from '@/store/authStore';
+import { generateOrderId } from '@/lib/utils';
+import { db, auth } from '@/lib/firebase';
+import { doc, setDoc, Timestamp } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+import AdModal from '@/components/ads/AdModal';
 
 type LocationPoint = {
   name: string;
@@ -21,6 +27,7 @@ const popularLocations = [
 
 export default function RidePage() {
   const router = useRouter();
+  const { user } = useAuthStore();
   const [vehicleType, setVehicleType] = useState<'bike' | 'auto'>('bike');
   const [pickup, setPickup] = useState<LocationPoint | null>(null);
   const [drop, setDrop] = useState<LocationPoint | null>(null);
@@ -29,6 +36,20 @@ export default function RidePage() {
   const [showPickupSuggestions, setShowPickupSuggestions] = useState(false);
   const [showDropSuggestions, setShowDropSuggestions] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
+  const [showAd, setShowAd] = useState(false);
+  const [error, setError] = useState('');
+
+  // Wait for Firebase Auth to initialize
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setAuthReady(true);
+      if (!firebaseUser && !user) {
+        router.push('/login');
+      }
+    });
+    return () => unsubscribe();
+  }, [user, router]);
 
   // Calculate distance using Haversine formula
   const distance = useMemo(() => {
@@ -105,20 +126,107 @@ export default function RidePage() {
     }
   };
 
+  // Validate and show ad
+  const handleShowAd = () => {
+    if (!authReady) {
+      setError('Please wait, loading...');
+      setTimeout(() => setError(''), 2000);
+      return;
+    }
+
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      setError('Please login to book ride');
+      setTimeout(() => router.push('/login'), 1500);
+      return;
+    }
+
+    if (!pickup || !drop) {
+      setError('Please select pickup and drop locations');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    // Show ad before booking
+    setShowAd(true);
+  };
+
+  // Actually book after ad is watched
   const handleBookRide = async () => {
     if (!pickup || !drop) return;
+    setShowAd(false);
     setIsBooking(true);
 
-    // Simulate booking
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        setError('Please login to book ride');
+        setTimeout(() => router.push('/login'), 1500);
+        return;
+      }
 
-    alert(`Ride booked! ${vehicleType === 'bike' ? 'Bike' : 'Auto'} from ${pickup.name} to ${drop.name}. Fare: Rs ${fare}`);
-    setIsBooking(false);
-    router.push('/orders');
+      const orderId = generateOrderId();
+
+      const order: Record<string, any> = {
+        id: orderId,
+        type: 'ride',
+        userId: currentUser.uid,
+        userName: user?.name || currentUser.displayName || 'Customer',
+        userPhone: user?.phone || currentUser.phoneNumber || '',
+        userVillage: user?.village || '',
+        vehicleType: vehicleType,
+        pickup: {
+          name: pickup.name,
+          lat: pickup.lat,
+          lng: pickup.lng,
+        },
+        drop: {
+          name: drop.name,
+          lat: drop.lat,
+          lng: drop.lng,
+        },
+        distance: parseFloat(distance.toFixed(2)),
+        estimatedTime: Math.ceil(distance * 3),
+        totalAmount: fare,
+        status: 'pending',
+        paymentMethod: 'cod',
+        paymentStatus: 'pending',
+        timeline: [
+          {
+            status: 'pending',
+            time: Timestamp.now(),
+            note: 'Ride request submitted',
+          },
+        ],
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      };
+
+      await setDoc(doc(db, 'orders', orderId), order);
+      router.push(`/orders/${orderId}`);
+    } catch (err) {
+      console.error('Error booking ride:', err);
+      setError('Failed to book ride. Please try again.');
+      setTimeout(() => setError(''), 3000);
+    } finally {
+      setIsBooking(false);
+    }
   };
 
   return (
     <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', paddingBottom: '100px' }}>
+      {/* Ad Modal */}
+      {showAd && (
+        <AdModal onComplete={handleBookRide} />
+      )}
+
+      {/* Error Toast */}
+      {error && (
+        <div style={{ position: 'fixed', top: '16px', left: '16px', right: '16px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '12px 16px', zIndex: 100 }}>
+          <span style={{ fontSize: '14px', color: '#dc2626' }}>{error}</span>
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '16px', position: 'sticky', top: 0, zIndex: 40 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -425,7 +533,7 @@ export default function RidePage() {
             </div>
           </div>
           <button
-            onClick={handleBookRide}
+            onClick={handleShowAd}
             disabled={isBooking}
             style={{
               width: '100%',

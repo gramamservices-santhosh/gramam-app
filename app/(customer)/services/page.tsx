@@ -8,6 +8,8 @@ const iconMap: Record<string, string> = {
   plumbing: '🔧',
   electrical: '⚡',
   medical: '🏥',
+  drivers: '🚗',
+  agricultural: '🚜',
   funeral: '🕯️',
   festival: '🎵',
   decoration: '🎊',
@@ -17,6 +19,8 @@ const colorMap: Record<string, { bg: string; border: string }> = {
   plumbing: { bg: '#eff6ff', border: '#3b82f6' },
   electrical: { bg: '#fefce8', border: '#eab308' },
   medical: { bg: '#fef2f2', border: '#ef4444' },
+  drivers: { bg: '#ecfdf5', border: '#059669' },
+  agricultural: { bg: '#fef3c7', border: '#d97706' },
   funeral: { bg: '#f5f3ff', border: '#8b5cf6' },
   festival: { bg: '#fff7ed', border: '#f97316' },
   decoration: { bg: '#fdf2f8', border: '#ec4899' },
@@ -25,6 +29,9 @@ const colorMap: Record<string, { bg: string; border: string }> = {
 export default function ServicesPage() {
   const homeServices = SERVICE_CATEGORIES.filter((s) =>
     ['plumbing', 'electrical', 'medical'].includes(s.id)
+  );
+  const driverAgriServices = SERVICE_CATEGORIES.filter((s) =>
+    ['drivers', 'agricultural'].includes(s.id)
   );
   const eventServices = SERVICE_CATEGORIES.filter((s) =>
     ['funeral', 'festival', 'decoration'].includes(s.id)
@@ -76,6 +83,51 @@ export default function ServicesPage() {
         <h2 style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b', marginBottom: '12px' }}>Home Services</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {homeServices.map((service) => {
+            const colors = colorMap[service.id] || { bg: '#f1f5f9', border: '#059669' };
+            return (
+              <Link key={service.id} href={`/services/${service.id}`} style={{ textDecoration: 'none' }}>
+                <div style={{
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}>
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    backgroundColor: colors.bg,
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '24px',
+                    flexShrink: 0
+                  }}>
+                    {iconMap[service.id] || '🔧'}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{service.name}</h3>
+                    <p style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>{service.description}</p>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '12px', color: '#059669', fontWeight: '500' }}>{service.options.length} options</span>
+                    <ChevronRight style={{ width: '16px', height: '16px', color: '#94a3b8' }} />
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Drivers & Agricultural */}
+      <div style={{ padding: '0 16px', marginBottom: '24px' }}>
+        <h2 style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b', marginBottom: '12px' }}>Drivers & Agricultural</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {driverAgriServices.map((service) => {
             const colors = colorMap[service.id] || { bg: '#f1f5f9', border: '#059669' };
             return (
               <Link key={service.id} href={`/services/${service.id}`} style={{ textDecoration: 'none' }}>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   ShoppingBag,
@@ -11,20 +11,16 @@ import {
   ClipboardList,
   Clock,
   ChevronRight,
+  Phone,
 } from 'lucide-react';
-
-// Sample data for demo
-const sampleOrders = [
-  { id: 'ORD001', type: 'shopping', customer: 'Ravi Kumar', village: 'Vaniyambadi', amount: 450, status: 'pending', time: '5 mins ago' },
-  { id: 'ORD002', type: 'transport', customer: 'Priya S', village: 'Ambur', amount: 85, status: 'confirmed', time: '15 mins ago' },
-  { id: 'ORD003', type: 'service', customer: 'Mohan R', village: 'Jolarpet', amount: 500, status: 'in_progress', time: '30 mins ago' },
-  { id: 'ORD004', type: 'shopping', customer: 'Lakshmi', village: 'Tirupattur', amount: 320, status: 'delivered', time: '1 hour ago' },
-  { id: 'ORD005', type: 'transport', customer: 'Anand K', village: 'Vaniyambadi', amount: 120, status: 'completed', time: '2 hours ago' },
-];
+import { db } from '@/lib/firebase';
+import { collection, query, orderBy, onSnapshot, where, Timestamp } from 'firebase/firestore';
+import { Order, User as UserType } from '@/types';
+import { formatDate } from '@/lib/utils';
 
 const typeIcons: Record<string, string> = {
-  shopping: '📦',
-  transport: '🛵',
+  shopping: '🛒',
+  ride: '🛵',
   service: '🔧',
 };
 
@@ -38,41 +34,88 @@ const statusColors: Record<string, { bg: string; text: string }> = {
 };
 
 export default function AdminDashboard() {
-  const stats = {
-    todayOrders: 24,
-    todayRevenue: 12500,
-    pendingOrders: 8,
-    totalUsers: 156,
-  };
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [users, setUsers] = useState<UserType[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch orders
+  useEffect(() => {
+    const ordersRef = collection(db, 'orders');
+    const q = query(ordersRef, orderBy('createdAt', 'desc'));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const ordersData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Order[];
+      setOrders(ordersData);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Fetch users
+  useEffect(() => {
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('type', '==', 'customer'));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const usersData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as UserType[];
+      setUsers(usersData);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Calculate today's stats
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const todayOrders = orders.filter((order) => {
+    if (!order.createdAt) return false;
+    const orderDate = typeof order.createdAt.toDate === 'function'
+      ? order.createdAt.toDate()
+      : new Date(order.createdAt as any);
+    return orderDate >= today;
+  });
+
+  const pendingOrders = orders.filter((order) => order.status === 'pending');
+
+  const todayRevenue = todayOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
 
   const orderBreakdown = {
-    shopping: 12,
-    transport: 8,
-    service: 4,
+    shopping: orders.filter((o) => o.type === 'shopping').length,
+    ride: orders.filter((o) => o.type === 'ride').length,
+    service: orders.filter((o) => o.type === 'service').length,
   };
+
+  const recentOrders = orders.slice(0, 10);
 
   return (
     <div>
       {/* Header */}
       <div style={{ marginBottom: '24px' }}>
         <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#1e293b', margin: 0 }}>Dashboard</h1>
-        <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>Overview of your business</p>
+        <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>Real-time overview of your business</p>
       </div>
 
-      {/* Stats Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
+      {/* Stats Grid - Responsive */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
         {/* Today's Orders */}
         <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div>
               <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>Today's Orders</p>
-              <p style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', margin: '8px 0 0' }}>{stats.todayOrders}</p>
+              <p style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', margin: '8px 0 0' }}>{todayOrders.length}</p>
             </div>
             <div style={{ width: '44px', height: '44px', backgroundColor: '#dbeafe', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <ClipboardList style={{ width: '22px', height: '22px', color: '#2563eb' }} />
             </div>
           </div>
-          <p style={{ fontSize: '12px', color: '#16a34a', marginTop: '8px' }}>+12% from yesterday</p>
         </div>
 
         {/* Today's Revenue */}
@@ -80,13 +123,12 @@ export default function AdminDashboard() {
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div>
               <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>Today's Revenue</p>
-              <p style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', margin: '8px 0 0' }}>Rs {stats.todayRevenue.toLocaleString()}</p>
+              <p style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', margin: '8px 0 0' }}>Rs {todayRevenue.toLocaleString()}</p>
             </div>
             <div style={{ width: '44px', height: '44px', backgroundColor: '#dcfce7', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <IndianRupee style={{ width: '22px', height: '22px', color: '#16a34a' }} />
             </div>
           </div>
-          <p style={{ fontSize: '12px', color: '#16a34a', marginTop: '8px' }}>+8% from yesterday</p>
         </div>
 
         {/* Pending Orders */}
@@ -94,13 +136,15 @@ export default function AdminDashboard() {
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div>
               <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>Pending Orders</p>
-              <p style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', margin: '8px 0 0' }}>{stats.pendingOrders}</p>
+              <p style={{ fontSize: '28px', fontWeight: '700', color: pendingOrders.length > 0 ? '#d97706' : '#1e293b', margin: '8px 0 0' }}>{pendingOrders.length}</p>
             </div>
             <div style={{ width: '44px', height: '44px', backgroundColor: '#fef3c7', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Clock style={{ width: '22px', height: '22px', color: '#d97706' }} />
             </div>
           </div>
-          <p style={{ fontSize: '12px', color: '#d97706', marginTop: '8px' }}>Needs attention</p>
+          {pendingOrders.length > 0 && (
+            <p style={{ fontSize: '12px', color: '#d97706', marginTop: '8px' }}>Needs attention!</p>
+          )}
         </div>
 
         {/* Total Users */}
@@ -108,25 +152,24 @@ export default function AdminDashboard() {
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div>
               <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>Total Users</p>
-              <p style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', margin: '8px 0 0' }}>{stats.totalUsers}</p>
+              <p style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', margin: '8px 0 0' }}>{users.length}</p>
             </div>
             <div style={{ width: '44px', height: '44px', backgroundColor: '#f3e8ff', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Users style={{ width: '22px', height: '22px', color: '#9333ea' }} />
             </div>
           </div>
-          <p style={{ fontSize: '12px', color: '#16a34a', marginTop: '8px' }}>+5 new this week</p>
         </div>
       </div>
 
-      {/* Order Type Breakdown */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
+      {/* Order Type Breakdown - Responsive */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: '24px' }}>
         <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div style={{ width: '48px', height: '48px', backgroundColor: '#fef3c7', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <ShoppingBag style={{ width: '24px', height: '24px', color: '#f97316' }} />
           </div>
           <div>
             <p style={{ fontSize: '24px', fontWeight: '700', color: '#1e293b', margin: 0 }}>{orderBreakdown.shopping}</p>
-            <p style={{ fontSize: '13px', color: '#64748b', margin: '2px 0 0' }}>Shopping Orders</p>
+            <p style={{ fontSize: '13px', color: '#64748b', margin: '2px 0 0' }}>Shopping</p>
           </div>
         </div>
         <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -134,8 +177,8 @@ export default function AdminDashboard() {
             <Navigation style={{ width: '24px', height: '24px', color: '#3b82f6' }} />
           </div>
           <div>
-            <p style={{ fontSize: '24px', fontWeight: '700', color: '#1e293b', margin: 0 }}>{orderBreakdown.transport}</p>
-            <p style={{ fontSize: '13px', color: '#64748b', margin: '2px 0 0' }}>Transport Orders</p>
+            <p style={{ fontSize: '24px', fontWeight: '700', color: '#1e293b', margin: 0 }}>{orderBreakdown.ride}</p>
+            <p style={{ fontSize: '13px', color: '#64748b', margin: '2px 0 0' }}>Rides</p>
           </div>
         </div>
         <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -144,7 +187,7 @@ export default function AdminDashboard() {
           </div>
           <div>
             <p style={{ fontSize: '24px', fontWeight: '700', color: '#1e293b', margin: 0 }}>{orderBreakdown.service}</p>
-            <p style={{ fontSize: '13px', color: '#64748b', margin: '2px 0 0' }}>Service Orders</p>
+            <p style={{ fontSize: '13px', color: '#64748b', margin: '2px 0 0' }}>Services</p>
           </div>
         </div>
       </div>
@@ -159,62 +202,70 @@ export default function AdminDashboard() {
           </Link>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                <th style={{ textAlign: 'left', padding: '12px 16px', fontSize: '13px', fontWeight: '500', color: '#64748b' }}>Order ID</th>
-                <th style={{ textAlign: 'left', padding: '12px 16px', fontSize: '13px', fontWeight: '500', color: '#64748b' }}>Type</th>
-                <th style={{ textAlign: 'left', padding: '12px 16px', fontSize: '13px', fontWeight: '500', color: '#64748b' }}>Customer</th>
-                <th style={{ textAlign: 'left', padding: '12px 16px', fontSize: '13px', fontWeight: '500', color: '#64748b' }}>Amount</th>
-                <th style={{ textAlign: 'left', padding: '12px 16px', fontSize: '13px', fontWeight: '500', color: '#64748b' }}>Status</th>
-                <th style={{ textAlign: 'left', padding: '12px 16px', fontSize: '13px', fontWeight: '500', color: '#64748b' }}>Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sampleOrders.map((order) => {
-                const statusColor = statusColors[order.status] || { bg: '#f1f5f9', text: '#64748b' };
-                return (
-                  <tr key={order.id} style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}>
-                    <td style={{ padding: '14px 16px', fontSize: '14px', fontWeight: '500', color: '#1e293b' }}>#{order.id}</td>
-                    <td style={{ padding: '14px 16px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '16px' }}>{typeIcons[order.type]}</span>
-                        <span style={{ fontSize: '14px', color: '#1e293b', textTransform: 'capitalize' }}>{order.type}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: '14px 16px' }}>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '32px' }}>
+            <p style={{ fontSize: '14px', color: '#64748b' }}>Loading orders...</p>
+          </div>
+        ) : recentOrders.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {recentOrders.map((order) => {
+              const statusColor = statusColors[order.status] || { bg: '#f1f5f9', text: '#64748b' };
+              return (
+                <Link key={order.id} href={`/admin/orders/${order.id}`} style={{ textDecoration: 'none' }}>
+                  <div style={{
+                    backgroundColor: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '10px',
+                    padding: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
+                    flexWrap: 'wrap'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '120px' }}>
+                      <span style={{ fontSize: '24px' }}>{typeIcons[order.type] || '📦'}</span>
                       <div>
-                        <p style={{ fontSize: '14px', color: '#1e293b', margin: 0 }}>{order.customer}</p>
-                        <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0' }}>{order.village}</p>
+                        <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>#{order.id.slice(-6)}</p>
+                        <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0', textTransform: 'capitalize' }}>{order.type}</p>
                       </div>
-                    </td>
-                    <td style={{ padding: '14px 16px', fontSize: '14px', fontWeight: '500', color: '#1e293b' }}>Rs {order.amount}</td>
-                    <td style={{ padding: '14px 16px' }}>
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: '150px' }}>
+                      <p style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b', margin: 0 }}>{order.userName || 'Customer'}</p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                        <Phone style={{ width: '12px', height: '12px', color: '#64748b' }} />
+                        <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>{order.userPhone || 'No phone'}</p>
+                      </div>
+                    </div>
+
+                    <div style={{ textAlign: 'right', minWidth: '80px' }}>
+                      {order.totalAmount > 0 && (
+                        <p style={{ fontSize: '14px', fontWeight: '600', color: '#059669', margin: 0 }}>Rs {order.totalAmount}</p>
+                      )}
                       <span style={{
+                        display: 'inline-block',
                         padding: '4px 10px',
                         backgroundColor: statusColor.bg,
                         color: statusColor.text,
                         borderRadius: '12px',
-                        fontSize: '12px',
+                        fontSize: '11px',
                         fontWeight: '500',
-                        textTransform: 'capitalize'
+                        textTransform: 'capitalize',
+                        marginTop: '4px'
                       }}>
-                        {order.status.replace('_', ' ')}
+                        {order.status?.replace('_', ' ')}
                       </span>
-                    </td>
-                    <td style={{ padding: '14px 16px', fontSize: '13px', color: '#64748b' }}>{order.time}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {sampleOrders.length === 0 && (
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        ) : (
           <div style={{ textAlign: 'center', padding: '32px' }}>
             <ClipboardList style={{ width: '48px', height: '48px', color: '#94a3b8', margin: '0 auto 12px' }} />
-            <p style={{ fontSize: '14px', color: '#64748b' }}>No orders yet</p>
+            <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>No orders yet</p>
+            <p style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Orders will appear here when customers place them</p>
           </div>
         )}
       </div>

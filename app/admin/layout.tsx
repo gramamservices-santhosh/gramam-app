@@ -13,7 +13,8 @@ import {
   LogOut,
   Home,
   Menu,
-  X
+  X,
+  Megaphone
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 
@@ -22,6 +23,7 @@ const menuItems = [
   { href: '/admin/orders', label: 'Orders', icon: ClipboardList },
   { href: '/admin/products', label: 'Products', icon: Package },
   { href: '/admin/users', label: 'Users', icon: Users },
+  { href: '/admin/ads', label: 'Advertisements', icon: Megaphone },
   { href: '/admin/team', label: 'Team', icon: UsersRound },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
