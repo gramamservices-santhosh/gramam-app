@@ -29,6 +29,18 @@ export default function ServiceTypePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [authReady, setAuthReady] = useState(false);
+
+  // Wait for Firebase Auth to initialize
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setAuthReady(true);
+      if (!firebaseUser && !user) {
+        router.push('/login');
+      }
+    });
+    return () => unsubscribe();
+  }, [user, router]);
 
   const service = getServiceCategory(serviceType);
 
@@ -48,13 +60,18 @@ export default function ServiceTypePage() {
   }
 
   const handleBookService = async () => {
+    // Wait for auth to be ready
+    if (!authReady) {
+      setError('Please wait, loading...');
+      setTimeout(() => setError(''), 2000);
+      return;
+    }
+
     // Check if Firebase Auth session is still active
     const currentUser = auth.currentUser;
-    if (!currentUser || !user) {
-      setError('Session expired. Please login again.');
-      setTimeout(() => {
-        router.push('/login');
-      }, 1500);
+    if (!currentUser) {
+      setError('Please login to book service.');
+      setTimeout(() => router.push('/login'), 1500);
       return;
     }
 

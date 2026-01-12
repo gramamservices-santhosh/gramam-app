@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, ShoppingBag, Send, Package, Truck, Phone } from 'lucide-react';
@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore';
 import { generateOrderId } from '@/lib/utils';
 import { db, auth } from '@/lib/firebase';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 
 export default function ShopPage() {
   const router = useRouter();
@@ -22,11 +23,30 @@ export default function ShopPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
+
+  // Wait for Firebase Auth to initialize
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setAuthReady(true);
+      if (!firebaseUser && !user) {
+        router.push('/login');
+      }
+    });
+    return () => unsubscribe();
+  }, [user, router]);
 
   const handleSubmitOrder = async () => {
+    // Wait for auth to be ready
+    if (!authReady) {
+      setError('Please wait, loading...');
+      setTimeout(() => setError(''), 2000);
+      return;
+    }
+
     // Check auth
     const currentUser = auth.currentUser;
-    if (!currentUser || !user) {
+    if (!currentUser) {
       setError('Please login to place order');
       setTimeout(() => router.push('/login'), 1500);
       return;
