@@ -1,8 +1,5 @@
 'use client';
 
-import Header from '@/components/layout/Header';
-import BottomNav from '@/components/layout/BottomNav';
-
 export default function CustomerLayout({
   children,
 }: {
@@ -19,9 +16,7 @@ export default function CustomerLayout({
         position: 'relative',
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
       }}>
-        <Header />
-        <main style={{ paddingBottom: '96px' }}>{children}</main>
-        <BottomNav />
+        {children}
       </div>
     </div>
   );
