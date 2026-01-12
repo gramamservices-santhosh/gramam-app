@@ -1,228 +1,291 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Search, ShoppingCart, X, ChevronRight, Plus, Minus } from 'lucide-react';
-import { CATEGORIES, SAMPLE_PRODUCTS } from '@/constants/categories';
-import { useCartStore } from '@/store/cartStore';
-import { formatPrice } from '@/lib/utils';
+import { ArrowLeft, ShoppingBag, Send, Package, Truck, Phone } from 'lucide-react';
+import { useAuthStore } from '@/store/authStore';
+import { generateOrderId } from '@/lib/utils';
+import { db, auth } from '@/lib/firebase';
+import { doc, setDoc, Timestamp } from 'firebase/firestore';
 
 export default function ShopPage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const { items, addItem, incrementQuantity, decrementQuantity } = useCartStore();
+  const router = useRouter();
+  const { user } = useAuthStore();
 
-  const cartTotal = items.reduce((sum, item) => sum + item.total, 0);
-  const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
+  const [orderList, setOrderList] = useState('');
+  const [notes, setNotes] = useState('');
+  const [address, setAddress] = useState({
+    village: user?.village || '',
+    street: '',
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
-  const filteredProducts = useMemo(() => {
-    if (!searchQuery) return SAMPLE_PRODUCTS;
-    const query = searchQuery.toLowerCase();
-    return SAMPLE_PRODUCTS.filter(
-      (product) =>
-        product.name.toLowerCase().includes(query) ||
-        product.category.toLowerCase().includes(query)
+  const handleSubmitOrder = async () => {
+    // Check auth
+    const currentUser = auth.currentUser;
+    if (!currentUser || !user) {
+      setError('Please login to place order');
+      setTimeout(() => router.push('/login'), 1500);
+      return;
+    }
+
+    if (!orderList.trim()) {
+      setError('Please enter what items you need');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    if (!address.village || !address.street) {
+      setError('Please enter your delivery address');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const orderId = generateOrderId();
+
+      const order: Record<string, any> = {
+        id: orderId,
+        type: 'shopping',
+        userId: currentUser.uid,
+        userName: user.name || 'Customer',
+        userPhone: user.phone || currentUser.phoneNumber || '',
+        userVillage: address.village,
+        isCustomOrder: true,
+        customOrderDescription: orderList.trim(),
+        deliveryAddress: {
+          village: address.village,
+          street: address.street,
+        },
+        itemsTotal: 0,
+        deliveryCharge: 0,
+        totalAmount: 0,
+        status: 'pending',
+        paymentMethod: 'cod',
+        paymentStatus: 'pending',
+        timeline: [
+          {
+            status: 'pending',
+            time: Timestamp.now(),
+            note: 'Shopping request submitted',
+          },
+        ],
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      };
+
+      if (notes.trim()) {
+        order.notes = notes.trim();
+      }
+
+      await setDoc(doc(db, 'orders', orderId), order);
+      setSuccess(true);
+      setTimeout(() => {
+        router.push(`/orders/${orderId}`);
+      }, 2000);
+    } catch (err) {
+      console.error('Error placing order:', err);
+      setError('Failed to submit order. Please try again.');
+      setTimeout(() => setError(''), 3000);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (success) {
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+        <div style={{ width: '80px', height: '80px', backgroundColor: '#ecfdf5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px' }}>
+          <Package style={{ width: '40px', height: '40px', color: '#059669' }} />
+        </div>
+        <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#1e293b', margin: '0 0 8px', textAlign: 'center' }}>Order Submitted!</h1>
+        <p style={{ fontSize: '16px', color: '#64748b', textAlign: 'center', margin: 0 }}>Our team will call you shortly to confirm your order.</p>
+      </div>
     );
-  }, [searchQuery]);
-
-  const getQuantity = (productId: string) => {
-    const item = items.find((i) => i.productId === productId);
-    return item?.quantity || 0;
-  };
-
-  const handleAddToCart = (product: typeof SAMPLE_PRODUCTS[0]) => {
-    addItem({
-      productId: product.name,
-      name: product.name,
-      price: product.price,
-      unit: product.unit,
-      image: product.image,
-    });
-  };
+  }
 
   return (
-    <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', paddingBottom: '140px' }}>
-      {/* Header */}
-      <div style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '16px', position: 'sticky', top: 0, zIndex: 40 }}>
-        <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b', margin: 0 }}>Shop</h1>
-        <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>Order groceries, vegetables & more</p>
-      </div>
-
-      {/* Search */}
-      <div style={{ padding: '16px' }}>
-        <div style={{ position: 'relative' }}>
-          <Search style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', width: '20px', height: '20px', color: '#94a3b8' }} />
-          <input
-            type="text"
-            placeholder="Search products..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%',
-              height: '48px',
-              paddingLeft: '48px',
-              paddingRight: searchQuery ? '48px' : '16px',
-              fontSize: '16px',
-              border: '1px solid #e2e8f0',
-              borderRadius: '12px',
-              backgroundColor: '#ffffff',
-              outline: 'none',
-              boxSizing: 'border-box'
-            }}
-          />
-          {searchQuery && (
-            <button onClick={() => setSearchQuery('')} style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer' }}>
-              <X style={{ width: '20px', height: '20px', color: '#94a3b8' }} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Categories */}
-      <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', padding: '0 16px', marginBottom: '24px' }}>
-        {CATEGORIES.map((cat) => (
-          <Link key={cat.id} href={`/shop/${cat.id}`} style={{ textDecoration: 'none', flexShrink: 0 }}>
-            <div style={{
-              padding: '8px 16px',
-              backgroundColor: '#ffffff',
-              border: '1px solid #e2e8f0',
-              borderRadius: '20px',
-              fontSize: '13px',
-              color: '#374151',
-              fontWeight: '500',
-              whiteSpace: 'nowrap'
-            }}>
-              {cat.icon} {cat.name}
-            </div>
-          </Link>
-        ))}
-      </div>
-
-      {/* Products */}
-      <div style={{ padding: '0 16px' }}>
-        <h2 style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b', marginBottom: '16px' }}>
-          {searchQuery ? `Results (${filteredProducts.length})` : 'All Products'}
-        </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-          {filteredProducts.slice(0, 20).map((product, index) => {
-            const qty = getQuantity(product.name);
-            return (
-              <div key={`${product.name}-${index}`} style={{
-                backgroundColor: '#ffffff',
-                border: '1px solid #e2e8f0',
-                borderRadius: '12px',
-                padding: '12px',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-              }}>
-                <div style={{
-                  width: '100%',
-                  aspectRatio: '1',
-                  backgroundColor: '#f1f5f9',
-                  borderRadius: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: '12px',
-                  fontSize: '32px'
-                }}>
-                  {product.category === 'vegetables' ? '🥬' : product.category === 'fruits' ? '🍎' : product.category === 'dairy' ? '🥛' : '🛒'}
-                </div>
-                <h3 style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b', margin: 0, marginBottom: '4px' }}>{product.name}</h3>
-                <p style={{ fontSize: '12px', color: '#64748b', margin: 0, marginBottom: '8px' }}>{product.unit}</p>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '14px', fontWeight: '600', color: '#059669' }}>{formatPrice(product.price)}</span>
-                  {qty === 0 ? (
-                    <button
-                      onClick={() => handleAddToCart(product)}
-                      style={{
-                        width: '32px',
-                        height: '32px',
-                        backgroundColor: '#059669',
-                        border: 'none',
-                        borderRadius: '8px',
-                        color: '#ffffff',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    >
-                      <Plus style={{ width: '16px', height: '16px' }} />
-                    </button>
-                  ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <button
-                        onClick={() => decrementQuantity(product.name)}
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          backgroundColor: '#f1f5f9',
-                          border: '1px solid #e2e8f0',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                      >
-                        <Minus style={{ width: '14px', height: '14px' }} />
-                      </button>
-                      <span style={{ fontSize: '14px', fontWeight: '500', minWidth: '20px', textAlign: 'center' }}>{qty}</span>
-                      <button
-                        onClick={() => incrementQuantity(product.name)}
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          backgroundColor: '#059669',
-                          border: 'none',
-                          borderRadius: '6px',
-                          color: '#ffffff',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                      >
-                        <Plus style={{ width: '14px', height: '14px' }} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Cart Bar */}
-      {cartCount > 0 && (
-        <div style={{ position: 'fixed', bottom: '70px', left: '16px', right: '16px', zIndex: 40 }}>
-          <Link href="/cart" style={{ textDecoration: 'none' }}>
-            <div style={{
-              backgroundColor: '#059669',
-              borderRadius: '12px',
-              padding: '16px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              boxShadow: '0 4px 12px rgba(5, 150, 105, 0.3)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '40px', height: '40px', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <ShoppingCart style={{ width: '20px', height: '20px', color: '#ffffff' }} />
-                </div>
-                <div>
-                  <p style={{ color: '#ffffff', fontWeight: '500', fontSize: '14px', margin: 0 }}>{cartCount} items</p>
-                  <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '12px', margin: 0 }}>{formatPrice(cartTotal)}</p>
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ffffff', fontWeight: '500', fontSize: '14px' }}>
-                View Cart
-                <ChevronRight style={{ width: '16px', height: '16px' }} />
-              </div>
-            </div>
-          </Link>
+    <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', paddingBottom: '100px' }}>
+      {/* Error Toast */}
+      {error && (
+        <div style={{ position: 'fixed', top: '16px', left: '16px', right: '16px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '12px 16px', zIndex: 100 }}>
+          <span style={{ fontSize: '14px', color: '#dc2626' }}>{error}</span>
         </div>
       )}
+
+      {/* Header */}
+      <div style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button onClick={() => router.back()} style={{ width: '40px', height: '40px', backgroundColor: '#f1f5f9', border: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <ArrowLeft style={{ width: '20px', height: '20px', color: '#1e293b' }} />
+          </button>
+          <div>
+            <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b', margin: 0 }}>Shopping Request</h1>
+            <p style={{ fontSize: '14px', color: '#64748b', margin: '2px 0 0' }}>Tell us what you need</p>
+          </div>
+        </div>
+      </div>
+
+      {/* How it Works */}
+      <div style={{ padding: '16px' }}>
+        <div style={{ backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#059669', margin: '0 0 12px' }}>How it works</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <div style={{ width: '28px', height: '28px', backgroundColor: '#059669', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span style={{ color: '#ffffff', fontSize: '14px', fontWeight: '600' }}>1</span>
+              </div>
+              <p style={{ fontSize: '14px', color: '#374151', margin: 0 }}>Write what items you need (groceries, vegetables, medicines, etc.)</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <div style={{ width: '28px', height: '28px', backgroundColor: '#059669', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Phone style={{ width: '14px', height: '14px', color: '#ffffff' }} />
+              </div>
+              <p style={{ fontSize: '14px', color: '#374151', margin: 0 }}>Our team will call you to confirm items and price</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <div style={{ width: '28px', height: '28px', backgroundColor: '#059669', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Truck style={{ width: '14px', height: '14px', color: '#ffffff' }} />
+              </div>
+              <p style={{ fontSize: '14px', color: '#374151', margin: 0 }}>We buy and deliver to your door. Delivery: ₹50-100 based on distance</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Order Form */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Items List */}
+          <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ShoppingBag style={{ width: '18px', height: '18px', color: '#059669' }} />
+              What do you need?
+            </h3>
+            <textarea
+              placeholder="Example:
+- 1 kg Rice
+- 500g Tomatoes
+- 1 packet Milk
+- Paracetamol tablets
+- 2 kg Sugar"
+              value={orderList}
+              onChange={(e) => setOrderList(e.target.value)}
+              style={{
+                width: '100%',
+                minHeight: '150px',
+                padding: '12px',
+                border: '1px solid #e2e8f0',
+                borderRadius: '10px',
+                fontSize: '14px',
+                color: '#1e293b',
+                resize: 'vertical',
+                boxSizing: 'border-box',
+                fontFamily: 'inherit',
+                lineHeight: '1.5'
+              }}
+            />
+          </div>
+
+          {/* Additional Notes */}
+          <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', margin: '0 0 12px' }}>Additional Notes (Optional)</h3>
+            <input
+              type="text"
+              placeholder="Any specific brand preferences or instructions..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px',
+                border: '1px solid #e2e8f0',
+                borderRadius: '10px',
+                fontSize: '14px',
+                color: '#1e293b',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+
+          {/* Delivery Address */}
+          <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', margin: '0 0 12px' }}>Delivery Address</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Village/Town *</label>
+                <input
+                  type="text"
+                  placeholder="Enter your village or town"
+                  value={address.village}
+                  onChange={(e) => setAddress({ ...address, village: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '10px',
+                    fontSize: '14px',
+                    color: '#1e293b',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Street Address *</label>
+                <input
+                  type="text"
+                  placeholder="House no., Street name, Landmark"
+                  value={address.street}
+                  onChange={(e) => setAddress({ ...address, street: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '10px',
+                    fontSize: '14px',
+                    color: '#1e293b',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Submit Button */}
+      <div style={{ position: 'fixed', bottom: '70px', left: 0, right: 0, padding: '16px', backgroundColor: '#f8fafc' }}>
+        <div style={{ maxWidth: '480px', margin: '0 auto' }}>
+          <button
+            onClick={handleSubmitOrder}
+            disabled={isLoading || !orderList.trim()}
+            style={{
+              width: '100%',
+              padding: '16px',
+              backgroundColor: isLoading || !orderList.trim() ? '#94a3b8' : '#059669',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: isLoading || !orderList.trim() ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
+            }}
+          >
+            {isLoading ? 'Submitting...' : (
+              <>
+                <Send style={{ width: '20px', height: '20px' }} />
+                Submit Shopping Request
+              </>
+            )}
+          </button>
+        </div>
+      </div>
 
       {/* Bottom Nav */}
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: '#ffffff', borderTop: '1px solid #e2e8f0', padding: '8px 0', zIndex: 50 }}>

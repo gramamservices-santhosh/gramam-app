@@ -79,9 +79,9 @@ export default function ServiceTypePage() {
       const order: Record<string, any> = {
         id: orderId,
         type: 'service',
-        userId: user.id,
+        userId: currentUser.uid,
         userName: user.name || 'Customer',
-        userPhone: user.phone,
+        userPhone: user.phone || currentUser.phoneNumber || '',
         userVillage: address.village,
         serviceType: serviceType,
         serviceOption: option?.name || selectedOption,

@@ -54,18 +54,31 @@ export default function CheckoutPage() {
     setIsLoading(true);
     try {
       const orderId = generateOrderId();
-      const order = {
-        id: orderId, type: 'shopping' as const, userId: user.id,
-        userName: user.name || 'Customer', userPhone: user.phone,
+      const order: Record<string, any> = {
+        id: orderId,
+        type: 'shopping',
+        userId: currentUser.uid,
+        userName: user.name || 'Customer',
+        userPhone: user.phone || currentUser.phoneNumber || '',
         userVillage: selectedAddress?.village || user.village || '',
         items: items.map((item) => ({ productId: item.productId, name: item.name, price: item.price, quantity: item.quantity, total: item.total })),
-        itemsTotal, deliveryCharge, totalAmount: grandTotal,
-        deliveryAddress: selectedAddress ? { village: selectedAddress.village, street: selectedAddress.street, landmark: selectedAddress.landmark } : undefined,
-        isCustomOrder: !!customOrderDescription, customOrderDescription: customOrderDescription || undefined,
-        status: 'pending' as const, paymentMethod, paymentStatus: 'pending' as const,
-        timeline: [{ status: 'pending' as const, time: Timestamp.now(), note: 'Order placed' }],
-        createdAt: Timestamp.now(), updatedAt: Timestamp.now(),
+        itemsTotal,
+        deliveryCharge,
+        totalAmount: grandTotal,
+        isCustomOrder: !!customOrderDescription,
+        status: 'pending',
+        paymentMethod,
+        paymentStatus: 'pending',
+        timeline: [{ status: 'pending', time: Timestamp.now(), note: 'Order placed' }],
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
       };
+      if (selectedAddress) {
+        order.deliveryAddress = { village: selectedAddress.village, street: selectedAddress.street, landmark: selectedAddress.landmark };
+      }
+      if (customOrderDescription) {
+        order.customOrderDescription = customOrderDescription;
+      }
       await setDoc(doc(db, 'orders', orderId), order);
       clearCart();
       alert('Order placed successfully!');
