@@ -19,10 +19,15 @@ interface Partner {
   status: 'pending' | 'approved' | 'rejected';
   isActive: boolean;
   documents: {
-    aadharFront: string;
-    aadharBack: string;
-    drivingLicense: string;
-    selfie: string;
+    aadharNumber?: string;
+    panNumber?: string;
+    licenseNumber?: string;
+    rcNumber?: string;
+    // Legacy fields for old data
+    aadharFront?: string;
+    aadharBack?: string;
+    drivingLicense?: string;
+    selfie?: string;
     panCard?: string;
     vehicleRC?: string;
     vehiclePhoto?: string;
@@ -192,21 +197,17 @@ export default function PartnersManagementPage() {
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  {/* Selfie Preview */}
+                  {/* Vehicle Icon */}
                   <div style={{
                     width: '60px',
                     height: '60px',
                     borderRadius: '12px',
-                    overflow: 'hidden',
-                    backgroundColor: '#f1f5f9'
+                    backgroundColor: partner.vehicleType === 'auto' ? '#fef3c7' : '#dbeafe',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
                   }}>
-                    {partner.documents?.selfie ? (
-                      <img src={partner.documents.selfie} alt={partner.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <User style={{ width: '24px', height: '24px', color: '#94a3b8' }} />
-                      </div>
-                    )}
+                    <span style={{ fontSize: '28px' }}>{partner.vehicleType === 'auto' ? '🛺' : '🏍️'}</span>
                   </div>
 
                   {/* Info */}
@@ -342,17 +343,13 @@ export default function PartnersManagementPage() {
                   width: '100px',
                   height: '100px',
                   borderRadius: '12px',
-                  overflow: 'hidden',
-                  backgroundColor: '#f1f5f9',
+                  backgroundColor: selectedPartner.vehicleType === 'auto' ? '#fef3c7' : '#dbeafe',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   flexShrink: 0
                 }}>
-                  {selectedPartner.documents?.selfie ? (
-                    <img src={selectedPartner.documents.selfie} alt={selectedPartner.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <User style={{ width: '40px', height: '40px', color: '#94a3b8' }} />
-                    </div>
-                  )}
+                  <span style={{ fontSize: '48px' }}>{selectedPartner.vehicleType === 'auto' ? '🛺' : '🏍️'}</span>
                 </div>
                 <div style={{ flex: 1 }}>
                   <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#1e293b', margin: '0 0 8px' }}>{selectedPartner.name}</h3>
@@ -384,41 +381,35 @@ export default function PartnersManagementPage() {
                 </div>
               </div>
 
-              {/* Documents Grid */}
-              <h4 style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', margin: '0 0 12px' }}>Uploaded Documents</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' }}>
-                {[
-                  { key: 'aadharFront', label: 'Aadhar Front' },
-                  { key: 'aadharBack', label: 'Aadhar Back' },
-                  { key: 'drivingLicense', label: 'Driving License' },
-                  { key: 'panCard', label: 'PAN Card' },
-                  { key: 'vehicleRC', label: 'Vehicle RC' },
-                  { key: 'vehiclePhoto', label: 'Vehicle Photo' },
-                ].map((doc) => {
-                  const url = selectedPartner.documents?.[doc.key as keyof typeof selectedPartner.documents];
-                  return (
-                    <div key={doc.key}>
-                      <p style={{ fontSize: '11px', fontWeight: '500', color: '#64748b', margin: '0 0 6px' }}>{doc.label}</p>
-                      <div style={{
-                        height: '80px',
-                        borderRadius: '8px',
-                        overflow: 'hidden',
-                        backgroundColor: '#f1f5f9',
-                        border: '1px solid #e2e8f0'
-                      }}>
-                        {url ? (
-                          <a href={url} target="_blank" rel="noopener noreferrer">
-                            <img src={url} alt={doc.label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          </a>
-                        ) : (
-                          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <span style={{ fontSize: '11px', color: '#94a3b8' }}>Not uploaded</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+              {/* Document Numbers */}
+              <h4 style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', margin: '0 0 12px' }}>Document Details</h4>
+              <div style={{ backgroundColor: '#f8fafc', borderRadius: '12px', padding: '16px', marginBottom: '24px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div>
+                    <p style={{ fontSize: '11px', fontWeight: '500', color: '#64748b', margin: '0 0 4px', textTransform: 'uppercase' }}>Aadhar Number</p>
+                    <p style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b', margin: 0, letterSpacing: '1px' }}>
+                      {selectedPartner.documents?.aadharNumber || 'Not provided'}
+                    </p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '11px', fontWeight: '500', color: '#64748b', margin: '0 0 4px', textTransform: 'uppercase' }}>PAN Number</p>
+                    <p style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b', margin: 0 }}>
+                      {selectedPartner.documents?.panNumber || 'Not provided'}
+                    </p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '11px', fontWeight: '500', color: '#64748b', margin: '0 0 4px', textTransform: 'uppercase' }}>Driving License</p>
+                    <p style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b', margin: 0 }}>
+                      {selectedPartner.documents?.licenseNumber || 'Not provided'}
+                    </p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '11px', fontWeight: '500', color: '#64748b', margin: '0 0 4px', textTransform: 'uppercase' }}>Vehicle RC Number</p>
+                    <p style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b', margin: 0 }}>
+                      {selectedPartner.documents?.rcNumber || selectedPartner.vehicleNumber}
+                    </p>
+                  </div>
+                </div>
               </div>
 
               {/* Status Badge */}

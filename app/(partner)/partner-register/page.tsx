@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Upload, Camera, Check, FileText, Car, User, Phone, MapPin, AlertCircle } from 'lucide-react';
-import { db, storage } from '@/lib/firebase';
+import { ArrowLeft, Check, Car, User, Phone, MapPin, AlertCircle, FileText, CreditCard, IdCard } from 'lucide-react';
+import { db } from '@/lib/firebase';
 import { doc, setDoc, getDoc, Timestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const VILLAGES = [
   'Vaniyambadi',
@@ -25,13 +24,6 @@ const VEHICLE_TYPES = [
   { id: 'bike', name: 'Bike', icon: '🏍️' },
   { id: 'auto', name: 'Auto', icon: '🛺' },
 ];
-
-interface DocumentUpload {
-  file: File | null;
-  preview: string;
-  uploading: boolean;
-  url: string;
-}
 
 export default function PartnerRegisterPage() {
   const router = useRouter();
@@ -55,23 +47,11 @@ export default function PartnerRegisterPage() {
   const [vehicleNumber, setVehicleNumber] = useState('');
   const [vehicleModel, setVehicleModel] = useState('');
 
-  // Document uploads
-  const [aadharFront, setAadharFront] = useState<DocumentUpload>({ file: null, preview: '', uploading: false, url: '' });
-  const [aadharBack, setAadharBack] = useState<DocumentUpload>({ file: null, preview: '', uploading: false, url: '' });
-  const [panCard, setPanCard] = useState<DocumentUpload>({ file: null, preview: '', uploading: false, url: '' });
-  const [drivingLicense, setDrivingLicense] = useState<DocumentUpload>({ file: null, preview: '', uploading: false, url: '' });
-  const [vehicleRC, setVehicleRC] = useState<DocumentUpload>({ file: null, preview: '', uploading: false, url: '' });
-  const [selfiePhoto, setSelfiePhoto] = useState<DocumentUpload>({ file: null, preview: '', uploading: false, url: '' });
-  const [vehiclePhoto, setVehiclePhoto] = useState<DocumentUpload>({ file: null, preview: '', uploading: false, url: '' });
-
-  // File input refs
-  const aadharFrontRef = useRef<HTMLInputElement>(null);
-  const aadharBackRef = useRef<HTMLInputElement>(null);
-  const panCardRef = useRef<HTMLInputElement>(null);
-  const drivingLicenseRef = useRef<HTMLInputElement>(null);
-  const vehicleRCRef = useRef<HTMLInputElement>(null);
-  const selfiePhotoRef = useRef<HTMLInputElement>(null);
-  const vehiclePhotoRef = useRef<HTMLInputElement>(null);
+  // Document numbers
+  const [aadharNumber, setAadharNumber] = useState('');
+  const [panNumber, setPanNumber] = useState('');
+  const [licenseNumber, setLicenseNumber] = useState('');
+  const [rcNumber, setRcNumber] = useState('');
 
   const handlePhoneChange = (value: string) => {
     const cleaned = value.replace(/\D/g, '');
@@ -87,27 +67,11 @@ export default function PartnerRegisterPage() {
     }
   };
 
-  const handleFileSelect = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    setter: React.Dispatch<React.SetStateAction<DocumentUpload>>
-  ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const preview = URL.createObjectURL(file);
-    setter({ file, preview, uploading: false, url: '' });
-  };
-
-  const uploadDocument = async (doc: DocumentUpload, folder: string): Promise<string> => {
-    if (!doc.file) return '';
-
-    const timestamp = Date.now();
-    const fileName = `partners/${phone}/${folder}/${timestamp}_${doc.file.name}`;
-    const storageRef = ref(storage, fileName);
-
-    await uploadBytes(storageRef, doc.file);
-    const url = await getDownloadURL(storageRef);
-    return url;
+  const handleAadharChange = (value: string) => {
+    const cleaned = value.replace(/\D/g, '');
+    if (cleaned.length <= 12) {
+      setAadharNumber(cleaned);
+    }
   };
 
   const validateStep1 = () => {
@@ -139,20 +103,12 @@ export default function PartnerRegisterPage() {
   };
 
   const validateStep3 = () => {
-    if (!aadharFront.file) {
-      setError('Please upload Aadhar card front');
+    if (!aadharNumber || aadharNumber.length !== 12) {
+      setError('Please enter a valid 12-digit Aadhar number');
       return false;
     }
-    if (!aadharBack.file) {
-      setError('Please upload Aadhar card back');
-      return false;
-    }
-    if (!drivingLicense.file) {
-      setError('Please upload Driving License');
-      return false;
-    }
-    if (!selfiePhoto.file) {
-      setError('Please upload a selfie photo');
+    if (!licenseNumber.trim()) {
+      setError('Please enter your Driving License number');
       return false;
     }
     return true;
@@ -182,58 +138,31 @@ export default function PartnerRegisterPage() {
         return;
       }
 
-      // Upload all documents
-      const [
-        aadharFrontUrl,
-        aadharBackUrl,
-        panCardUrl,
-        drivingLicenseUrl,
-        vehicleRCUrl,
-        selfieUrl,
-        vehiclePhotoUrl,
-      ] = await Promise.all([
-        uploadDocument(aadharFront, 'aadhar'),
-        uploadDocument(aadharBack, 'aadhar'),
-        uploadDocument(panCard, 'pan'),
-        uploadDocument(drivingLicense, 'license'),
-        uploadDocument(vehicleRC, 'vehicle'),
-        uploadDocument(selfiePhoto, 'selfie'),
-        uploadDocument(vehiclePhoto, 'vehicle'),
-      ]);
-
       // Create partner document
-      const partnerId = `partner_${phone}`;
-      const now = Timestamp.now();
-
-      const partnerData: Record<string, any> = {
-        id: partnerId,
+      const partnerData = {
+        id: `partner_${phone}`,
         name: name.trim(),
         phone: `+91${phone}`,
-        village: village,
+        email: email.trim() || null,
+        village,
         address: address.trim(),
         emergencyContact: `+91${emergencyContact}`,
-        vehicleType: vehicleType,
-        vehicleNumber: vehicleNumber.toUpperCase().trim(),
-        status: 'pending', // pending, approved, rejected
-        isActive: false,
+        vehicleType,
+        vehicleNumber: vehicleNumber.trim().toUpperCase(),
+        vehicleModel: vehicleModel.trim() || null,
         documents: {
-          aadharFront: aadharFrontUrl,
-          aadharBack: aadharBackUrl,
-          drivingLicense: drivingLicenseUrl,
-          selfie: selfieUrl,
+          aadharNumber: aadharNumber,
+          panNumber: panNumber.trim().toUpperCase() || null,
+          licenseNumber: licenseNumber.trim().toUpperCase(),
+          rcNumber: rcNumber.trim().toUpperCase() || vehicleNumber.trim().toUpperCase(),
         },
-        createdAt: now,
-        updatedAt: now,
+        status: 'pending',
+        isActive: false,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
       };
 
-      // Add optional fields only if they exist
-      if (email.trim()) partnerData.email = email.trim();
-      if (vehicleModel.trim()) partnerData.vehicleModel = vehicleModel.trim();
-      if (panCardUrl) partnerData.documents.panCard = panCardUrl;
-      if (vehicleRCUrl) partnerData.documents.vehicleRC = vehicleRCUrl;
-      if (vehiclePhotoUrl) partnerData.documents.vehiclePhoto = vehiclePhotoUrl;
-
-      await setDoc(doc(db, 'partners', partnerId), partnerData);
+      await setDoc(doc(db, 'partners', `partner_${phone}`), partnerData);
 
       setSuccess(true);
     } catch (err) {
@@ -247,37 +176,37 @@ export default function PartnerRegisterPage() {
   if (success) {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-        <div style={{ maxWidth: '400px', textAlign: 'center' }}>
+        <div style={{ width: '100%', maxWidth: '400px', textAlign: 'center' }}>
           <div style={{
             width: '80px',
             height: '80px',
-            backgroundColor: '#d1fae5',
+            backgroundColor: '#dcfce7',
             borderRadius: '50%',
-            display: 'flex',
+            display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            margin: '0 auto 24px'
+            marginBottom: '24px'
           }}>
-            <Check style={{ width: '40px', height: '40px', color: '#059669' }} />
+            <Check style={{ width: '40px', height: '40px', color: '#16a34a' }} />
           </div>
           <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#1e293b', margin: '0 0 12px' }}>Registration Submitted!</h1>
-          <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '24px' }}>
-            Thank you for registering as a partner. Our team will review your documents and contact you within 24-48 hours.
+          <p style={{ fontSize: '14px', color: '#64748b', margin: '0 0 24px' }}>
+            Thank you for registering as a partner. Our team will verify your details and contact you within 24-48 hours.
           </p>
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/login')}
             style={{
               padding: '14px 32px',
               backgroundColor: '#059669',
               color: '#ffffff',
               border: 'none',
               borderRadius: '12px',
-              fontSize: '16px',
+              fontSize: '14px',
               fontWeight: '600',
               cursor: 'pointer'
             }}
           >
-            Back to Home
+            Back to Login
           </button>
         </div>
       </div>
@@ -285,18 +214,18 @@ export default function PartnerRegisterPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', padding: '24px' }}>
       {/* Header */}
-      <div style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '16px' }}>
-        <div style={{ maxWidth: '600px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div style={{ maxWidth: '500px', margin: '0 auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
           <button
             onClick={() => step > 1 ? setStep(step - 1) : router.back()}
             style={{
               width: '40px',
               height: '40px',
-              borderRadius: '50%',
-              backgroundColor: '#f1f5f9',
-              border: 'none',
+              backgroundColor: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '10px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -306,15 +235,13 @@ export default function PartnerRegisterPage() {
             <ArrowLeft style={{ width: '20px', height: '20px', color: '#1e293b' }} />
           </button>
           <div>
-            <h1 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: 0 }}>Partner Registration</h1>
-            <p style={{ fontSize: '13px', color: '#64748b', margin: '2px 0 0' }}>Step {step} of 3</p>
+            <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b', margin: 0 }}>Partner Registration</h1>
+            <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0' }}>Step {step} of 3</p>
           </div>
         </div>
-      </div>
 
-      {/* Progress Bar */}
-      <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px 16px 0' }}>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        {/* Progress Bar */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '32px' }}>
           {[1, 2, 3].map((s) => (
             <div
               key={s}
@@ -327,55 +254,73 @@ export default function PartnerRegisterPage() {
             />
           ))}
         </div>
-      </div>
 
-      {/* Error Message */}
-      {error && (
-        <div style={{ maxWidth: '600px', margin: '16px auto 0', padding: '0 16px' }}>
+        {/* Error Message */}
+        {error && (
           <div style={{
             backgroundColor: '#fef2f2',
             border: '1px solid #fecaca',
             borderRadius: '12px',
             padding: '12px 16px',
+            marginBottom: '24px',
             display: 'flex',
             alignItems: 'center',
             gap: '12px'
           }}>
             <AlertCircle style={{ width: '20px', height: '20px', color: '#dc2626', flexShrink: 0 }} />
-            <span style={{ fontSize: '14px', color: '#dc2626' }}>{error}</span>
+            <p style={{ fontSize: '14px', color: '#dc2626', margin: 0 }}>{error}</p>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Form Content */}
-      <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px', paddingBottom: '120px' }}>
-        {/* Step 1: Personal Details */}
-        {step === 1 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-                <div style={{ width: '40px', height: '40px', backgroundColor: '#ecfdf5', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <User style={{ width: '20px', height: '20px', color: '#059669' }} />
+        {/* Form Card */}
+        <div style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          padding: '24px',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+        }}>
+          {/* Step 1: Personal Details */}
+          {step === 1 && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                <div style={{
+                  width: '44px',
+                  height: '44px',
+                  backgroundColor: '#dbeafe',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <User style={{ width: '22px', height: '22px', color: '#2563eb' }} />
                 </div>
-                <h2 style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Personal Information</h2>
+                <div>
+                  <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Personal Details</h2>
+                  <p style={{ fontSize: '13px', color: '#64748b', margin: '2px 0 0' }}>Enter your basic information</p>
+                </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {/* Name */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {/* Full Name */}
                 <div>
-                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Full Name *</label>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
+                    Full Name *
+                  </label>
                   <input
                     type="text"
-                    placeholder="Enter your full name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    placeholder="Enter your full name"
                     style={{
                       width: '100%',
-                      padding: '14px',
+                      height: '48px',
+                      padding: '0 16px',
+                      fontSize: '14px',
                       border: '1px solid #e2e8f0',
                       borderRadius: '10px',
-                      fontSize: '15px',
+                      backgroundColor: '#f8fafc',
                       color: '#1e293b',
+                      outline: 'none',
                       boxSizing: 'border-box'
                     }}
                   />
@@ -383,8 +328,10 @@ export default function PartnerRegisterPage() {
 
                 {/* Phone */}
                 <div>
-                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Phone Number *</label>
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
+                    Phone Number *
+                  </label>
+                  <div style={{ display: 'flex', gap: '12px' }}>
                     <div style={{
                       width: '60px',
                       height: '48px',
@@ -396,24 +343,27 @@ export default function PartnerRegisterPage() {
                       borderRadius: '10px',
                       fontSize: '14px',
                       fontWeight: '500',
-                      color: '#64748b'
+                      color: '#475569',
+                      flexShrink: 0
                     }}>
                       +91
                     </div>
                     <input
                       type="tel"
-                      placeholder="9876543210"
                       value={phone}
                       onChange={(e) => handlePhoneChange(e.target.value)}
+                      placeholder="9876543210"
                       maxLength={10}
-                      inputMode="numeric"
                       style={{
                         flex: 1,
-                        padding: '14px',
+                        height: '48px',
+                        padding: '0 16px',
+                        fontSize: '14px',
                         border: '1px solid #e2e8f0',
                         borderRadius: '10px',
-                        fontSize: '15px',
+                        backgroundColor: '#f8fafc',
                         color: '#1e293b',
+                        outline: 'none',
                         boxSizing: 'border-box'
                       }}
                     />
@@ -422,19 +372,24 @@ export default function PartnerRegisterPage() {
 
                 {/* Email */}
                 <div>
-                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Email <span style={{ color: '#94a3b8' }}>(Optional)</span></label>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
+                    Email (Optional)
+                  </label>
                   <input
                     type="email"
-                    placeholder="your@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    placeholder="email@example.com"
                     style={{
                       width: '100%',
-                      padding: '14px',
+                      height: '48px',
+                      padding: '0 16px',
+                      fontSize: '14px',
                       border: '1px solid #e2e8f0',
                       borderRadius: '10px',
-                      fontSize: '15px',
+                      backgroundColor: '#f8fafc',
                       color: '#1e293b',
+                      outline: 'none',
                       boxSizing: 'border-box'
                     }}
                   />
@@ -442,19 +397,24 @@ export default function PartnerRegisterPage() {
 
                 {/* Village */}
                 <div>
-                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Village / Town *</label>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
+                    Village/Town *
+                  </label>
                   <select
                     value={village}
                     onChange={(e) => setVillage(e.target.value)}
                     style={{
                       width: '100%',
-                      padding: '14px',
+                      height: '48px',
+                      padding: '0 16px',
+                      fontSize: '14px',
                       border: '1px solid #e2e8f0',
                       borderRadius: '10px',
-                      fontSize: '15px',
+                      backgroundColor: '#f8fafc',
                       color: '#1e293b',
-                      backgroundColor: '#ffffff',
-                      boxSizing: 'border-box'
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      cursor: 'pointer'
                     }}
                   >
                     {VILLAGES.map((v) => (
@@ -465,29 +425,35 @@ export default function PartnerRegisterPage() {
 
                 {/* Address */}
                 <div>
-                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Full Address *</label>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
+                    Full Address *
+                  </label>
                   <textarea
-                    placeholder="House no., Street, Landmark"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
+                    placeholder="Enter your complete address"
                     rows={3}
                     style={{
                       width: '100%',
-                      padding: '14px',
+                      padding: '12px 16px',
+                      fontSize: '14px',
                       border: '1px solid #e2e8f0',
                       borderRadius: '10px',
-                      fontSize: '15px',
+                      backgroundColor: '#f8fafc',
                       color: '#1e293b',
-                      resize: 'none',
-                      boxSizing: 'border-box'
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      resize: 'none'
                     }}
                   />
                 </div>
 
                 {/* Emergency Contact */}
                 <div>
-                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Emergency Contact *</label>
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
+                    Emergency Contact *
+                  </label>
+                  <div style={{ display: 'flex', gap: '12px' }}>
                     <div style={{
                       width: '60px',
                       height: '48px',
@@ -499,66 +465,80 @@ export default function PartnerRegisterPage() {
                       borderRadius: '10px',
                       fontSize: '14px',
                       fontWeight: '500',
-                      color: '#64748b'
+                      color: '#475569',
+                      flexShrink: 0
                     }}>
                       +91
                     </div>
                     <input
                       type="tel"
-                      placeholder="Family member contact"
                       value={emergencyContact}
                       onChange={(e) => handleEmergencyContactChange(e.target.value)}
+                      placeholder="Emergency contact number"
                       maxLength={10}
-                      inputMode="numeric"
                       style={{
                         flex: 1,
-                        padding: '14px',
+                        height: '48px',
+                        padding: '0 16px',
+                        fontSize: '14px',
                         border: '1px solid #e2e8f0',
                         borderRadius: '10px',
-                        fontSize: '15px',
+                        backgroundColor: '#f8fafc',
                         color: '#1e293b',
+                        outline: 'none',
                         boxSizing: 'border-box'
                       }}
                     />
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
+            </>
+          )}
 
-        {/* Step 2: Vehicle Details */}
-        {step === 2 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-                <div style={{ width: '40px', height: '40px', backgroundColor: '#ecfdf5', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Car style={{ width: '20px', height: '20px', color: '#059669' }} />
+          {/* Step 2: Vehicle Details */}
+          {step === 2 && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                <div style={{
+                  width: '44px',
+                  height: '44px',
+                  backgroundColor: '#fef3c7',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Car style={{ width: '22px', height: '22px', color: '#f97316' }} />
                 </div>
-                <h2 style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Vehicle Information</h2>
+                <div>
+                  <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Vehicle Details</h2>
+                  <p style={{ fontSize: '13px', color: '#64748b', margin: '2px 0 0' }}>Enter your vehicle information</p>
+                </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 {/* Vehicle Type */}
                 <div>
-                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '10px' }}>Vehicle Type *</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '12px' }}>
+                    Vehicle Type *
+                  </label>
+                  <div style={{ display: 'flex', gap: '12px' }}>
                     {VEHICLE_TYPES.map((type) => (
                       <button
                         key={type.id}
-                        type="button"
                         onClick={() => setVehicleType(type.id)}
                         style={{
+                          flex: 1,
                           padding: '16px',
+                          backgroundColor: vehicleType === type.id ? '#f0fdf4' : '#f8fafc',
                           border: vehicleType === type.id ? '2px solid #059669' : '1px solid #e2e8f0',
                           borderRadius: '12px',
-                          backgroundColor: vehicleType === type.id ? '#ecfdf5' : '#ffffff',
                           cursor: 'pointer',
                           textAlign: 'center'
                         }}
                       >
                         <span style={{ fontSize: '32px', display: 'block', marginBottom: '8px' }}>{type.icon}</span>
-                        <span style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>{type.name}</span>
+                        <span style={{ fontSize: '14px', fontWeight: vehicleType === type.id ? '600' : '500', color: '#1e293b' }}>{type.name}</span>
                       </button>
                     ))}
                   </div>
@@ -566,382 +546,271 @@ export default function PartnerRegisterPage() {
 
                 {/* Vehicle Number */}
                 <div>
-                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Registration Number *</label>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
+                    Vehicle Registration Number *
+                  </label>
                   <input
                     type="text"
-                    placeholder="TN 23 AB 1234"
                     value={vehicleNumber}
                     onChange={(e) => setVehicleNumber(e.target.value.toUpperCase())}
+                    placeholder="TN23AB1234"
                     style={{
                       width: '100%',
-                      padding: '14px',
+                      height: '48px',
+                      padding: '0 16px',
+                      fontSize: '14px',
                       border: '1px solid #e2e8f0',
                       borderRadius: '10px',
-                      fontSize: '15px',
+                      backgroundColor: '#f8fafc',
                       color: '#1e293b',
-                      textTransform: 'uppercase',
-                      boxSizing: 'border-box'
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      textTransform: 'uppercase'
                     }}
                   />
                 </div>
 
                 {/* Vehicle Model */}
                 <div>
-                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Vehicle Model <span style={{ color: '#94a3b8' }}>(Optional)</span></label>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
+                    Vehicle Model (Optional)
+                  </label>
                   <input
                     type="text"
-                    placeholder="e.g., Honda Activa, Bajaj RE"
                     value={vehicleModel}
                     onChange={(e) => setVehicleModel(e.target.value)}
+                    placeholder="e.g., Honda Activa, Bajaj Auto"
                     style={{
                       width: '100%',
-                      padding: '14px',
+                      height: '48px',
+                      padding: '0 16px',
+                      fontSize: '14px',
                       border: '1px solid #e2e8f0',
                       borderRadius: '10px',
-                      fontSize: '15px',
+                      backgroundColor: '#f8fafc',
                       color: '#1e293b',
+                      outline: 'none',
                       boxSizing: 'border-box'
                     }}
                   />
                 </div>
               </div>
-            </div>
-          </div>
-        )}
+            </>
+          )}
 
-        {/* Step 3: Documents */}
-        {step === 3 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Documents Section */}
-            <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-                <div style={{ width: '40px', height: '40px', backgroundColor: '#ecfdf5', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <FileText style={{ width: '20px', height: '20px', color: '#059669' }} />
+          {/* Step 3: Document Numbers */}
+          {step === 3 && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                <div style={{
+                  width: '44px',
+                  height: '44px',
+                  backgroundColor: '#dcfce7',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <FileText style={{ width: '22px', height: '22px', color: '#16a34a' }} />
                 </div>
-                <h2 style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Identity Documents</h2>
+                <div>
+                  <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Document Details</h2>
+                  <p style={{ fontSize: '13px', color: '#64748b', margin: '2px 0 0' }}>Enter your document numbers for verification</p>
+                </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                {/* Aadhar Front */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {/* Aadhar Number */}
                 <div>
-                  <label style={{ fontSize: '12px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Aadhar Card (Front) *</label>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <IdCard style={{ width: '16px', height: '16px', color: '#64748b' }} />
+                      Aadhar Number *
+                    </div>
+                  </label>
                   <input
-                    ref={aadharFrontRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleFileSelect(e, setAadharFront)}
-                    style={{ display: 'none' }}
-                  />
-                  <div
-                    onClick={() => aadharFrontRef.current?.click()}
+                    type="text"
+                    value={aadharNumber}
+                    onChange={(e) => handleAadharChange(e.target.value)}
+                    placeholder="Enter 12-digit Aadhar number"
+                    maxLength={12}
                     style={{
-                      height: '100px',
-                      border: aadharFront.file ? '2px solid #059669' : '2px dashed #e2e8f0',
+                      width: '100%',
+                      height: '48px',
+                      padding: '0 16px',
+                      fontSize: '14px',
+                      border: '1px solid #e2e8f0',
                       borderRadius: '10px',
-                      backgroundColor: aadharFront.file ? '#ecfdf5' : '#f8fafc',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      overflow: 'hidden'
+                      backgroundColor: '#f8fafc',
+                      color: '#1e293b',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      letterSpacing: '2px'
                     }}
-                  >
-                    {aadharFront.preview ? (
-                      <img src={aadharFront.preview} alt="Aadhar Front" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <div style={{ textAlign: 'center' }}>
-                        <Upload style={{ width: '24px', height: '24px', color: '#94a3b8', margin: '0 auto 4px' }} />
-                        <span style={{ fontSize: '11px', color: '#94a3b8' }}>Upload</span>
-                      </div>
-                    )}
-                  </div>
+                  />
+                  <p style={{ fontSize: '12px', color: '#64748b', margin: '6px 0 0' }}>
+                    {aadharNumber.length}/12 digits
+                  </p>
                 </div>
 
-                {/* Aadhar Back */}
+                {/* PAN Number */}
                 <div>
-                  <label style={{ fontSize: '12px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Aadhar Card (Back) *</label>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <CreditCard style={{ width: '16px', height: '16px', color: '#64748b' }} />
+                      PAN Number (Optional)
+                    </div>
+                  </label>
                   <input
-                    ref={aadharBackRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleFileSelect(e, setAadharBack)}
-                    style={{ display: 'none' }}
-                  />
-                  <div
-                    onClick={() => aadharBackRef.current?.click()}
+                    type="text"
+                    value={panNumber}
+                    onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
+                    placeholder="ABCDE1234F"
+                    maxLength={10}
                     style={{
-                      height: '100px',
-                      border: aadharBack.file ? '2px solid #059669' : '2px dashed #e2e8f0',
+                      width: '100%',
+                      height: '48px',
+                      padding: '0 16px',
+                      fontSize: '14px',
+                      border: '1px solid #e2e8f0',
                       borderRadius: '10px',
-                      backgroundColor: aadharBack.file ? '#ecfdf5' : '#f8fafc',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      overflow: 'hidden'
+                      backgroundColor: '#f8fafc',
+                      color: '#1e293b',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      textTransform: 'uppercase'
                     }}
-                  >
-                    {aadharBack.preview ? (
-                      <img src={aadharBack.preview} alt="Aadhar Back" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <div style={{ textAlign: 'center' }}>
-                        <Upload style={{ width: '24px', height: '24px', color: '#94a3b8', margin: '0 auto 4px' }} />
-                        <span style={{ fontSize: '11px', color: '#94a3b8' }}>Upload</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* PAN Card */}
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>PAN Card <span style={{ color: '#94a3b8' }}>(Optional)</span></label>
-                  <input
-                    ref={panCardRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleFileSelect(e, setPanCard)}
-                    style={{ display: 'none' }}
                   />
-                  <div
-                    onClick={() => panCardRef.current?.click()}
-                    style={{
-                      height: '100px',
-                      border: panCard.file ? '2px solid #059669' : '2px dashed #e2e8f0',
-                      borderRadius: '10px',
-                      backgroundColor: panCard.file ? '#ecfdf5' : '#f8fafc',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      overflow: 'hidden'
-                    }}
-                  >
-                    {panCard.preview ? (
-                      <img src={panCard.preview} alt="PAN Card" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <div style={{ textAlign: 'center' }}>
-                        <Upload style={{ width: '24px', height: '24px', color: '#94a3b8', margin: '0 auto 4px' }} />
-                        <span style={{ fontSize: '11px', color: '#94a3b8' }}>Upload</span>
-                      </div>
-                    )}
-                  </div>
                 </div>
 
                 {/* Driving License */}
                 <div>
-                  <label style={{ fontSize: '12px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Driving License *</label>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Car style={{ width: '16px', height: '16px', color: '#64748b' }} />
+                      Driving License Number *
+                    </div>
+                  </label>
                   <input
-                    ref={drivingLicenseRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleFileSelect(e, setDrivingLicense)}
-                    style={{ display: 'none' }}
-                  />
-                  <div
-                    onClick={() => drivingLicenseRef.current?.click()}
+                    type="text"
+                    value={licenseNumber}
+                    onChange={(e) => setLicenseNumber(e.target.value.toUpperCase())}
+                    placeholder="TN01 2020 0001234"
                     style={{
-                      height: '100px',
-                      border: drivingLicense.file ? '2px solid #059669' : '2px dashed #e2e8f0',
+                      width: '100%',
+                      height: '48px',
+                      padding: '0 16px',
+                      fontSize: '14px',
+                      border: '1px solid #e2e8f0',
                       borderRadius: '10px',
-                      backgroundColor: drivingLicense.file ? '#ecfdf5' : '#f8fafc',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      overflow: 'hidden'
+                      backgroundColor: '#f8fafc',
+                      color: '#1e293b',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      textTransform: 'uppercase'
                     }}
-                  >
-                    {drivingLicense.preview ? (
-                      <img src={drivingLicense.preview} alt="Driving License" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <div style={{ textAlign: 'center' }}>
-                        <Upload style={{ width: '24px', height: '24px', color: '#94a3b8', margin: '0 auto 4px' }} />
-                        <span style={{ fontSize: '11px', color: '#94a3b8' }}>Upload</span>
-                      </div>
-                    )}
-                  </div>
+                  />
                 </div>
-              </div>
-            </div>
 
-            {/* Vehicle Documents */}
-            <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
-              <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', margin: '0 0 16px' }}>Vehicle Documents</h3>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 {/* Vehicle RC */}
                 <div>
-                  <label style={{ fontSize: '12px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Vehicle RC <span style={{ color: '#94a3b8' }}>(Optional)</span></label>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <FileText style={{ width: '16px', height: '16px', color: '#64748b' }} />
+                      Vehicle RC Number (Optional)
+                    </div>
+                  </label>
                   <input
-                    ref={vehicleRCRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleFileSelect(e, setVehicleRC)}
-                    style={{ display: 'none' }}
-                  />
-                  <div
-                    onClick={() => vehicleRCRef.current?.click()}
+                    type="text"
+                    value={rcNumber}
+                    onChange={(e) => setRcNumber(e.target.value.toUpperCase())}
+                    placeholder="Same as vehicle number if not different"
                     style={{
-                      height: '100px',
-                      border: vehicleRC.file ? '2px solid #059669' : '2px dashed #e2e8f0',
+                      width: '100%',
+                      height: '48px',
+                      padding: '0 16px',
+                      fontSize: '14px',
+                      border: '1px solid #e2e8f0',
                       borderRadius: '10px',
-                      backgroundColor: vehicleRC.file ? '#ecfdf5' : '#f8fafc',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      overflow: 'hidden'
+                      backgroundColor: '#f8fafc',
+                      color: '#1e293b',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      textTransform: 'uppercase'
                     }}
-                  >
-                    {vehicleRC.preview ? (
-                      <img src={vehicleRC.preview} alt="Vehicle RC" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <div style={{ textAlign: 'center' }}>
-                        <Upload style={{ width: '24px', height: '24px', color: '#94a3b8', margin: '0 auto 4px' }} />
-                        <span style={{ fontSize: '11px', color: '#94a3b8' }}>Upload</span>
-                      </div>
-                    )}
-                  </div>
+                  />
                 </div>
 
-                {/* Vehicle Photo */}
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>Vehicle Photo <span style={{ color: '#94a3b8' }}>(Optional)</span></label>
-                  <input
-                    ref={vehiclePhotoRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleFileSelect(e, setVehiclePhoto)}
-                    style={{ display: 'none' }}
-                  />
-                  <div
-                    onClick={() => vehiclePhotoRef.current?.click()}
-                    style={{
-                      height: '100px',
-                      border: vehiclePhoto.file ? '2px solid #059669' : '2px dashed #e2e8f0',
-                      borderRadius: '10px',
-                      backgroundColor: vehiclePhoto.file ? '#ecfdf5' : '#f8fafc',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      overflow: 'hidden'
-                    }}
-                  >
-                    {vehiclePhoto.preview ? (
-                      <img src={vehiclePhoto.preview} alt="Vehicle" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <div style={{ textAlign: 'center' }}>
-                        <Upload style={{ width: '24px', height: '24px', color: '#94a3b8', margin: '0 auto 4px' }} />
-                        <span style={{ fontSize: '11px', color: '#94a3b8' }}>Upload</span>
-                      </div>
-                    )}
-                  </div>
+                {/* Info Box */}
+                <div style={{
+                  backgroundColor: '#f0fdf4',
+                  border: '1px solid #bbf7d0',
+                  borderRadius: '10px',
+                  padding: '16px'
+                }}>
+                  <p style={{ fontSize: '13px', color: '#16a34a', margin: 0 }}>
+                    <strong>Note:</strong> Our team will verify these details. You may be asked to show original documents during verification.
+                  </p>
                 </div>
               </div>
-            </div>
+            </>
+          )}
 
-            {/* Selfie Photo */}
-            <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
-              <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', margin: '0 0 8px' }}>Your Photo *</h3>
-              <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 16px' }}>Upload a clear photo of yourself for verification</p>
-
-              <input
-                ref={selfiePhotoRef}
-                type="file"
-                accept="image/*"
-                capture="user"
-                onChange={(e) => handleFileSelect(e, setSelfiePhoto)}
-                style={{ display: 'none' }}
-              />
-              <div
-                onClick={() => selfiePhotoRef.current?.click()}
+          {/* Navigation Buttons */}
+          <div style={{ marginTop: '24px' }}>
+            {step < 3 ? (
+              <button
+                onClick={handleNext}
                 style={{
-                  height: '160px',
-                  border: selfiePhoto.file ? '2px solid #059669' : '2px dashed #e2e8f0',
+                  width: '100%',
+                  padding: '14px',
+                  backgroundColor: '#059669',
+                  color: '#ffffff',
+                  border: 'none',
                   borderRadius: '12px',
-                  backgroundColor: selfiePhoto.file ? '#ecfdf5' : '#f8fafc',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Continue
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={isLoading}
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  backgroundColor: '#059669',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  opacity: isLoading ? 0.7 : 1,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  cursor: 'pointer',
-                  overflow: 'hidden'
+                  gap: '8px'
                 }}
               >
-                {selfiePhoto.preview ? (
-                  <img src={selfiePhoto.preview} alt="Selfie" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <div style={{ textAlign: 'center' }}>
-                    <Camera style={{ width: '40px', height: '40px', color: '#94a3b8', margin: '0 auto 8px' }} />
-                    <span style={{ fontSize: '14px', color: '#64748b' }}>Take or upload photo</span>
-                  </div>
+                {isLoading ? 'Submitting...' : (
+                  <>
+                    <Check style={{ width: '18px', height: '18px' }} />
+                    Submit Registration
+                  </>
                 )}
-              </div>
-            </div>
-
-            {/* Terms */}
-            <div style={{
-              backgroundColor: '#fffbeb',
-              border: '1px solid #fde68a',
-              borderRadius: '12px',
-              padding: '16px'
-            }}>
-              <p style={{ fontSize: '13px', color: '#92400e', margin: 0 }}>
-                By submitting, you confirm that all information provided is accurate. False information may lead to rejection of your application.
-              </p>
-            </div>
+              </button>
+            )}
           </div>
-        )}
-      </div>
-
-      {/* Bottom Action Button */}
-      <div style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        padding: '16px',
-        backgroundColor: '#ffffff',
-        borderTop: '1px solid #e2e8f0'
-      }}>
-        <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-          {step < 3 ? (
-            <button
-              onClick={handleNext}
-              style={{
-                width: '100%',
-                padding: '16px',
-                backgroundColor: '#059669',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '12px',
-                fontSize: '16px',
-                fontWeight: '600',
-                cursor: 'pointer'
-              }}
-            >
-              Continue
-            </button>
-          ) : (
-            <button
-              onClick={handleSubmit}
-              disabled={isLoading}
-              style={{
-                width: '100%',
-                padding: '16px',
-                backgroundColor: isLoading ? '#94a3b8' : '#059669',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '12px',
-                fontSize: '16px',
-                fontWeight: '600',
-                cursor: isLoading ? 'not-allowed' : 'pointer'
-              }}
-            >
-              {isLoading ? 'Submitting...' : 'Submit Registration'}
-            </button>
-          )}
         </div>
+
+        {/* Footer */}
+        <p style={{ textAlign: 'center', fontSize: '12px', color: '#94a3b8', marginTop: '24px' }}>
+          By registering, you agree to our terms and conditions
+        </p>
       </div>
     </div>
   );
