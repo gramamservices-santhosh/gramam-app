@@ -72,6 +72,10 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
   const [assignedPartner, setAssignedPartner] = useState<Partner | null>(null);
   const [loadingPartners, setLoadingPartners] = useState(false);
 
+  // Final amount state (commission/charges)
+  const [finalAmount, setFinalAmount] = useState<string>('');
+  const [showAmountModal, setShowAmountModal] = useState(false);
+
   useEffect(() => {
     const orderRef = doc(db, 'orders', id);
     const unsubscribe = onSnapshot(orderRef, (doc) => {
@@ -159,6 +163,41 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
       setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err) {
       setError('Failed to remove partner');
+      setTimeout(() => setError(''), 3000);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleCompleteWithAmount = () => {
+    // Show modal to enter final amount before completing
+    setFinalAmount(order?.totalAmount?.toString() || '0');
+    setShowAmountModal(true);
+  };
+
+  const completeOrderWithAmount = async () => {
+    if (!order) return;
+    const amount = parseFloat(finalAmount) || 0;
+    if (amount <= 0) {
+      setError('Please enter a valid amount');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      const orderRef = doc(db, 'orders', order.id);
+      const finalStatus = order.type === 'shopping' ? 'delivered' : 'completed';
+      await updateDoc(orderRef, {
+        status: finalStatus,
+        finalAmount: amount,
+        updatedAt: serverTimestamp(),
+      });
+      setShowAmountModal(false);
+      setSuccessMsg(`Order completed with amount ₹${amount}`);
+      setTimeout(() => setSuccessMsg(''), 3000);
+    } catch (err) {
+      setError('Failed to complete order');
       setTimeout(() => setError(''), 3000);
     } finally {
       setIsUpdating(false);
@@ -406,7 +445,14 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
               )}
               {nextStatus && order.status !== 'pending' && order.status !== 'cancelled' && (
                 <button
-                  onClick={() => updateStatus(nextStatus)}
+                  onClick={() => {
+                    // For final status, show amount modal
+                    if (nextStatus === 'delivered' || nextStatus === 'completed') {
+                      handleCompleteWithAmount();
+                    } else {
+                      updateStatus(nextStatus);
+                    }
+                  }}
                   disabled={isUpdating}
                   style={{ width: '100%', padding: '14px', backgroundColor: '#059669', color: '#ffffff', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: isUpdating ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: isUpdating ? 0.7 : 1 }}
                 >
@@ -416,7 +462,14 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
                 </button>
               )}
               {(order.status === 'delivered' || order.status === 'completed') && (
-                <p style={{ textAlign: 'center', color: '#16a34a', fontWeight: '500' }}>Order Completed</p>
+                <div>
+                  <p style={{ textAlign: 'center', color: '#16a34a', fontWeight: '500', margin: '0 0 8px' }}>Order Completed</p>
+                  {(order as any).finalAmount && (
+                    <p style={{ textAlign: 'center', fontSize: '18px', fontWeight: '700', color: '#059669', margin: 0 }}>
+                      Final Amount: ₹{(order as any).finalAmount}
+                    </p>
+                  )}
+                </div>
               )}
               {order.status === 'cancelled' && (
                 <p style={{ textAlign: 'center', color: '#dc2626', fontWeight: '500' }}>Order Cancelled</p>
@@ -666,6 +719,148 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Amount Entry Modal */}
+      {showAmountModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          padding: '20px'
+        }}>
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '400px',
+            overflow: 'hidden'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              padding: '20px',
+              borderBottom: '1px solid #e2e8f0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Enter Final Amount</h2>
+              <button
+                onClick={() => setShowAmountModal(false)}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  backgroundColor: '#f1f5f9',
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <X style={{ width: '18px', height: '18px', color: '#64748b' }} />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div style={{ padding: '20px' }}>
+              <p style={{ fontSize: '14px', color: '#64748b', margin: '0 0 16px' }}>
+                Enter the final amount collected for this order (commission/charges included).
+              </p>
+
+              {/* Order Amount Reference */}
+              <div style={{
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '10px',
+                padding: '12px',
+                marginBottom: '16px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                  <span style={{ color: '#64748b' }}>Original Order Amount</span>
+                  <span style={{ color: '#1e293b', fontWeight: '500' }}>₹{order?.totalAmount || 0}</span>
+                </div>
+              </div>
+
+              {/* Amount Input */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
+                  Final Amount (₹)
+                </label>
+                <input
+                  type="number"
+                  value={finalAmount}
+                  onChange={(e) => setFinalAmount(e.target.value)}
+                  placeholder="Enter amount"
+                  style={{
+                    width: '100%',
+                    height: '48px',
+                    padding: '0 16px',
+                    fontSize: '18px',
+                    fontWeight: '600',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '10px',
+                    backgroundColor: '#f8fafc',
+                    color: '#1e293b',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              {/* Buttons */}
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={() => setShowAmountModal(false)}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    backgroundColor: '#f1f5f9',
+                    color: '#64748b',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={completeOrderWithAmount}
+                  disabled={isUpdating || !finalAmount || parseFloat(finalAmount) <= 0}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    backgroundColor: '#059669',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: (isUpdating || !finalAmount || parseFloat(finalAmount) <= 0) ? 'not-allowed' : 'pointer',
+                    opacity: (isUpdating || !finalAmount || parseFloat(finalAmount) <= 0) ? 0.7 : 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <CheckCircle style={{ width: '18px', height: '18px' }} />
+                  {isUpdating ? 'Completing...' : 'Complete Order'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
