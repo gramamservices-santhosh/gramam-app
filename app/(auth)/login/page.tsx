@@ -56,11 +56,14 @@ export default function LoginPage() {
 
     await new Promise(resolve => setTimeout(resolve, 500));
 
+    // Admin login with special phone number
+    const isAdmin = phone === '1234567890';
+
     const user = {
       id: `demo_${phone}`,
       phone: `+91${phone}`,
       name: name.trim(),
-      type: 'customer' as const,
+      type: isAdmin ? 'admin' as const : 'customer' as const,
       village: village,
       addresses: [],
       createdAt: Timestamp.now(),
@@ -69,8 +72,14 @@ export default function LoginPage() {
     };
 
     setUser(user);
-    success(`Welcome, ${name}!`);
-    router.replace('/home');
+
+    if (isAdmin) {
+      success(`Welcome Admin, ${name}!`);
+      router.replace('/admin/dashboard');
+    } else {
+      success(`Welcome, ${name}!`);
+      router.replace('/home');
+    }
     setIsLoading(false);
   };
 
