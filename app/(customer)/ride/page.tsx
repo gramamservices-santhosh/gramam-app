@@ -73,19 +73,25 @@ export default function RidePage() {
     return 0;
   }, [distance, vehicleType]);
 
-  // Filter locations based on search
+  // Filter locations based on search - search by name and type
   const filteredPickupLocations = useMemo(() => {
-    if (!pickupSearch) return LOCATIONS.slice(0, 5);
+    if (!pickupSearch) return LOCATIONS.slice(0, 8);
+    const search = pickupSearch.toLowerCase();
     return LOCATIONS.filter((loc) =>
-      loc.name.toLowerCase().includes(pickupSearch.toLowerCase())
-    ).slice(0, 5);
+      loc.name.toLowerCase().includes(search) ||
+      loc.type.toLowerCase().includes(search) ||
+      loc.taluk.toLowerCase().includes(search)
+    ).slice(0, 15);
   }, [pickupSearch]);
 
   const filteredDropLocations = useMemo(() => {
-    if (!dropSearch) return LOCATIONS.slice(0, 5);
+    if (!dropSearch) return LOCATIONS.slice(0, 8);
+    const search = dropSearch.toLowerCase();
     return LOCATIONS.filter((loc) =>
-      loc.name.toLowerCase().includes(dropSearch.toLowerCase())
-    ).slice(0, 5);
+      loc.name.toLowerCase().includes(search) ||
+      loc.type.toLowerCase().includes(search) ||
+      loc.taluk.toLowerCase().includes(search)
+    ).slice(0, 15);
   }, [dropSearch]);
 
   const handleSelectPickup = (loc: typeof LOCATIONS[0]) => {

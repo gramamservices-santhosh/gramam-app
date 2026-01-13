@@ -8,7 +8,26 @@ import { doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { Order } from '@/types';
 import { formatPrice, formatDate } from '@/lib/utils';
 
-const STATUS_FLOW = ['pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered'];
+// Different status flows for different order types
+const STATUS_FLOWS: Record<string, string[]> = {
+  shopping: ['pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered'],
+  ride: ['pending', 'confirmed', 'driver_on_way', 'arrived', 'in_progress', 'completed'],
+  service: ['pending', 'confirmed', 'technician_assigned', 'in_progress', 'completed'],
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'Pending',
+  confirmed: 'Confirmed',
+  preparing: 'Preparing',
+  out_for_delivery: 'Out for Delivery',
+  delivered: 'Delivered',
+  driver_on_way: 'Driver On Way',
+  arrived: 'Driver Arrived',
+  in_progress: 'In Progress',
+  completed: 'Completed',
+  technician_assigned: 'Technician Assigned',
+  cancelled: 'Cancelled',
+};
 
 const statusColors: Record<string, { bg: string; text: string }> = {
   pending: { bg: '#fef3c7', text: '#d97706' },
@@ -16,6 +35,11 @@ const statusColors: Record<string, { bg: string; text: string }> = {
   preparing: { bg: '#e0e7ff', text: '#4f46e5' },
   out_for_delivery: { bg: '#dbeafe', text: '#2563eb' },
   delivered: { bg: '#dcfce7', text: '#16a34a' },
+  driver_on_way: { bg: '#fef3c7', text: '#d97706' },
+  arrived: { bg: '#dbeafe', text: '#2563eb' },
+  in_progress: { bg: '#e0e7ff', text: '#4f46e5' },
+  completed: { bg: '#dcfce7', text: '#16a34a' },
+  technician_assigned: { bg: '#dbeafe', text: '#2563eb' },
   cancelled: { bg: '#fee2e2', text: '#dc2626' },
 };
 
@@ -58,11 +82,17 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
     setIsUpdating(false);
   };
 
+  const getStatusFlow = () => {
+    if (!order) return STATUS_FLOWS.shopping;
+    return STATUS_FLOWS[order.type] || STATUS_FLOWS.shopping;
+  };
+
   const getNextStatus = () => {
     if (!order) return null;
-    const currentIndex = STATUS_FLOW.indexOf(order.status);
-    if (currentIndex === -1 || currentIndex >= STATUS_FLOW.length - 1) return null;
-    return STATUS_FLOW[currentIndex + 1];
+    const statusFlow = getStatusFlow();
+    const currentIndex = statusFlow.indexOf(order.status);
+    if (currentIndex === -1 || currentIndex >= statusFlow.length - 1) return null;
+    return statusFlow[currentIndex + 1];
   };
 
   if (isLoading) {
@@ -113,8 +143,8 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
           <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#1e293b', margin: 0 }}>Order #{order.id.slice(-6)}</h1>
           <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>{formatDate(order.createdAt)}</p>
         </div>
-        <span style={{ marginLeft: 'auto', padding: '6px 16px', backgroundColor: statusColor.bg, color: statusColor.text, borderRadius: '20px', fontSize: '13px', fontWeight: '500', textTransform: 'capitalize' }}>
-          {order.status.replace('_', ' ')}
+        <span style={{ marginLeft: 'auto', padding: '6px 16px', backgroundColor: statusColor.bg, color: statusColor.text, borderRadius: '20px', fontSize: '13px', fontWeight: '500' }}>
+          {STATUS_LABELS[order.status] || order.status}
         </span>
       </div>
 
@@ -279,12 +309,12 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
                   disabled={isUpdating}
                   style={{ width: '100%', padding: '14px', backgroundColor: '#059669', color: '#ffffff', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: isUpdating ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: isUpdating ? 0.7 : 1 }}
                 >
-                  {nextStatus === 'out_for_delivery' && <Truck style={{ width: '18px', height: '18px' }} />}
-                  {nextStatus === 'delivered' && <CheckCircle style={{ width: '18px', height: '18px' }} />}
-                  Mark as {nextStatus.replace('_', ' ')}
+                  {(nextStatus === 'out_for_delivery' || nextStatus === 'driver_on_way') && <Truck style={{ width: '18px', height: '18px' }} />}
+                  {(nextStatus === 'delivered' || nextStatus === 'completed') && <CheckCircle style={{ width: '18px', height: '18px' }} />}
+                  Mark as {STATUS_LABELS[nextStatus] || nextStatus}
                 </button>
               )}
-              {order.status === 'delivered' && (
+              {(order.status === 'delivered' || order.status === 'completed') && (
                 <p style={{ textAlign: 'center', color: '#16a34a', fontWeight: '500' }}>Order Completed</p>
               )}
               {order.status === 'cancelled' && (
@@ -297,8 +327,9 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
           <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
             <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: '0 0 16px' }}>Order Timeline</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {STATUS_FLOW.map((status, index) => {
-                const currentIndex = STATUS_FLOW.indexOf(order.status);
+              {getStatusFlow().map((status, index) => {
+                const statusFlow = getStatusFlow();
+                const currentIndex = statusFlow.indexOf(order.status);
                 const isCompleted = index <= currentIndex;
                 const isCurrent = index === currentIndex;
 
@@ -313,10 +344,9 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
                     }} />
                     <span style={{
                       color: isCompleted ? '#1e293b' : '#94a3b8',
-                      fontWeight: isCurrent ? '600' : '400',
-                      textTransform: 'capitalize'
+                      fontWeight: isCurrent ? '600' : '400'
                     }}>
-                      {status.replace('_', ' ')}
+                      {STATUS_LABELS[status] || status}
                     </span>
                   </div>
                 );

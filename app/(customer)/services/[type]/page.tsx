@@ -148,7 +148,7 @@ export default function ServiceTypePage() {
   const today = new Date().toISOString().split('T')[0];
 
   return (
-    <div style={{ padding: '16px', paddingBottom: '180px' }}>
+    <div style={{ padding: '16px', paddingBottom: '220px', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
       {/* Ad Modal */}
       {showAd && (
         <AdModal onComplete={handleBookService} />
