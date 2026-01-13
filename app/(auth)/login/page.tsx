@@ -3,24 +3,17 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/components/ui/Toast';
+import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import { Timestamp } from 'firebase/firestore';
 
-const VILLAGES = [
-  'Vaniyambadi',
-  'Alangayam',
-  'Jolarpet',
-  'Tirupathur',
-  'Ambur',
-  'Natrampalli',
-  'Odugathur',
-  'Pallalakuppam',
-  'Vellakuttai',
-  'Pernambut',
-  'Yelagiri',
-];
+// Admin credentials (hardcoded)
+const ADMIN_PHONE = '8667510724';
+const ADMIN_PASSWORD = 'AGM635701';
+const ADMIN_NAME = 'admin';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,8 +21,8 @@ export default function LoginPage() {
   const { success, error: showError } = useToast();
 
   const [phone, setPhone] = useState('');
-  const [name, setName] = useState('');
-  const [village, setVillage] = useState('Vaniyambadi');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handlePhoneChange = (value: string) => {
@@ -47,41 +40,79 @@ export default function LoginPage() {
       return;
     }
 
-    if (!name.trim()) {
-      showError('Please enter your name');
-      return;
-    }
-
     setIsLoading(true);
 
-    await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      // Check if admin login
+      if (phone === ADMIN_PHONE) {
+        if (!password) {
+          showError('Please enter admin password');
+          setIsLoading(false);
+          return;
+        }
 
-    // Admin login with special phone number
-    const isAdmin = phone === '1234567890';
+        if (password !== ADMIN_PASSWORD) {
+          showError('Invalid admin password');
+          setIsLoading(false);
+          return;
+        }
 
-    const user = {
-      id: `demo_${phone}`,
-      phone: `+91${phone}`,
-      name: name.trim(),
-      type: isAdmin ? 'admin' as const : 'customer' as const,
-      village: village,
-      addresses: [],
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-      isActive: true,
-    };
+        // Admin login successful
+        const adminUser = {
+          id: 'admin_8667510724',
+          phone: '+918667510724',
+          name: ADMIN_NAME,
+          type: 'admin' as const,
+          village: 'Vaniyambadi',
+          addresses: [],
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+          isActive: true,
+        };
 
-    setUser(user);
+        setUser(adminUser);
+        success('Welcome Admin!');
+        router.replace('/admin/dashboard');
+        return;
+      }
 
-    if (isAdmin) {
-      success(`Welcome Admin, ${name}!`);
-      router.replace('/admin/dashboard');
-    } else {
-      success(`Welcome, ${name}!`);
+      // Customer login - check if user exists in Firestore
+      const userDoc = await getDoc(doc(db, 'users', `user_${phone}`));
+
+      if (!userDoc.exists()) {
+        showError('Account not found. Please sign up first.');
+        setIsLoading(false);
+        setTimeout(() => router.push('/signup'), 1500);
+        return;
+      }
+
+      const userData = userDoc.data();
+      const user = {
+        id: userData.id || `user_${phone}`,
+        phone: userData.phone || `+91${phone}`,
+        name: userData.name || 'Customer',
+        email: userData.email,
+        type: 'customer' as const,
+        village: userData.village || 'Vaniyambadi',
+        addresses: userData.addresses || [],
+        createdAt: userData.createdAt || Timestamp.now(),
+        updatedAt: Timestamp.now(),
+        isActive: true,
+      };
+
+      setUser(user);
+      success(`Welcome back, ${user.name}!`);
       router.replace('/home');
+
+    } catch (err) {
+      console.error('Login error:', err);
+      showError('Login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
+
+  const isAdminPhone = phone === ADMIN_PHONE;
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
@@ -114,34 +145,11 @@ export default function LoginPage() {
         }}>
 
           <h2 style={{ fontSize: '24px', fontWeight: '600', color: '#1e293b', marginBottom: '8px' }}>Log in</h2>
-          <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '32px' }}>Enter your details to continue</p>
+          <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '32px' }}>
+            {isAdminPhone ? 'Enter admin password to continue' : 'Enter your phone number to continue'}
+          </p>
 
           <form onSubmit={handleLogin}>
-
-            {/* Name Field */}
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
-                Full Name
-              </label>
-              <input
-                type="text"
-                placeholder="Enter your full name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                style={{
-                  width: '100%',
-                  height: '48px',
-                  padding: '0 16px',
-                  fontSize: '16px',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '12px',
-                  backgroundColor: '#f8fafc',
-                  color: '#1e293b',
-                  outline: 'none',
-                  boxSizing: 'border-box'
-                }}
-              />
-            </div>
 
             {/* Phone Field */}
             <div style={{ marginBottom: '24px' }}>
@@ -188,40 +196,54 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Village Field */}
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
-                Village / Town
-              </label>
-              <select
-                value={village}
-                onChange={(e) => setVillage(e.target.value)}
-                style={{
-                  width: '100%',
-                  height: '48px',
-                  padding: '0 16px',
-                  fontSize: '16px',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '12px',
-                  backgroundColor: '#f8fafc',
-                  color: '#1e293b',
-                  outline: 'none',
-                  cursor: 'pointer',
-                  boxSizing: 'border-box'
-                }}
-              >
-                {VILLAGES.map((v) => (
-                  <option key={v} value={v}>{v}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Forgot Password Link */}
-            <div style={{ textAlign: 'right', marginBottom: '24px' }}>
-              <Link href="/forgot-password" style={{ fontSize: '14px', color: '#059669', textDecoration: 'none', fontWeight: '500' }}>
-                Forgot password?
-              </Link>
-            </div>
+            {/* Password Field (only for admin) */}
+            {isAdminPhone && (
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
+                  Admin Password
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Enter admin password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    style={{
+                      width: '100%',
+                      height: '48px',
+                      padding: '0 48px 0 16px',
+                      fontSize: '16px',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '12px',
+                      backgroundColor: '#f8fafc',
+                      color: '#1e293b',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '4px'
+                    }}
+                  >
+                    {showPassword ? (
+                      <EyeOff style={{ width: '20px', height: '20px', color: '#64748b' }} />
+                    ) : (
+                      <Eye style={{ width: '20px', height: '20px', color: '#64748b' }} />
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Submit Button */}
             <button
@@ -246,7 +268,7 @@ export default function LoginPage() {
             >
               {isLoading ? 'Please wait...' : (
                 <>
-                  Continue
+                  {isAdminPhone ? 'Login as Admin' : 'Continue'}
                   <ArrowRight style={{ width: '20px', height: '20px' }} />
                 </>
               )}
@@ -262,9 +284,9 @@ export default function LoginPage() {
 
           {/* Sign Up Link */}
           <p style={{ textAlign: 'center', fontSize: '14px', color: '#64748b', margin: 0 }}>
-            Don't have an account?{' '}
+            New to Gramam?{' '}
             <Link href="/signup" style={{ color: '#059669', fontWeight: '600', textDecoration: 'none' }}>
-              Sign up
+              Create account
             </Link>
           </p>
         </div>
