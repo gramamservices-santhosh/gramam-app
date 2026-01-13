@@ -167,8 +167,8 @@ export default function ShopPage() {
             <ArrowLeft style={{ width: '20px', height: '20px', color: '#1e293b' }} />
           </button>
           <div>
-            <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b', margin: 0 }}>Shopping Request</h1>
-            <p style={{ fontSize: '14px', color: '#64748b', margin: '2px 0 0' }}>Tell us what you need</p>
+            <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b', margin: 0 }}>Shopping</h1>
+            <p style={{ fontSize: '14px', color: '#64748b', margin: '2px 0 0' }}>Write what you need, we'll deliver</p>
           </div>
         </div>
       </div>
