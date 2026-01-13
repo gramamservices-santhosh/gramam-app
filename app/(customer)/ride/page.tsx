@@ -7,9 +7,8 @@ import { ArrowLeft, ArrowUpDown, MapPin, Navigation, ChevronRight } from 'lucide
 import { LOCATIONS } from '@/constants/locations';
 import { useAuthStore } from '@/store/authStore';
 import { generateOrderId } from '@/lib/utils';
-import { db, auth } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
 import AdModal from '@/components/ads/AdModal';
 
 type LocationPoint = {
@@ -27,7 +26,7 @@ const popularLocations = [
 
 export default function RidePage() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, isAuthenticated, _hasHydrated } = useAuthStore();
   const [vehicleType, setVehicleType] = useState<'bike' | 'auto'>('bike');
   const [pickup, setPickup] = useState<LocationPoint | null>(null);
   const [drop, setDrop] = useState<LocationPoint | null>(null);
@@ -36,20 +35,15 @@ export default function RidePage() {
   const [showPickupSuggestions, setShowPickupSuggestions] = useState(false);
   const [showDropSuggestions, setShowDropSuggestions] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
-  const [authReady, setAuthReady] = useState(false);
   const [showAd, setShowAd] = useState(false);
   const [error, setError] = useState('');
 
-  // Wait for Firebase Auth to initialize
+  // Check auth after hydration
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setAuthReady(true);
-      if (!firebaseUser && !user) {
-        router.push('/login');
-      }
-    });
-    return () => unsubscribe();
-  }, [user, router]);
+    if (_hasHydrated && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [_hasHydrated, isAuthenticated, router]);
 
   // Calculate distance using Haversine formula
   const distance = useMemo(() => {
@@ -128,14 +122,13 @@ export default function RidePage() {
 
   // Validate and show ad
   const handleShowAd = () => {
-    if (!authReady) {
+    if (!_hasHydrated) {
       setError('Please wait, loading...');
       setTimeout(() => setError(''), 2000);
       return;
     }
 
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
+    if (!isAuthenticated || !user) {
       setError('Please login to book ride');
       setTimeout(() => router.push('/login'), 1500);
       return;
@@ -158,8 +151,7 @@ export default function RidePage() {
     setIsBooking(true);
 
     try {
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
+      if (!isAuthenticated || !user) {
         setError('Please login to book ride');
         setTimeout(() => router.push('/login'), 1500);
         return;
@@ -170,10 +162,10 @@ export default function RidePage() {
       const order: Record<string, any> = {
         id: orderId,
         type: 'ride',
-        userId: currentUser.uid,
-        userName: user?.name || currentUser.displayName || 'Customer',
-        userPhone: user?.phone || currentUser.phoneNumber || '',
-        userVillage: user?.village || '',
+        userId: user.id,
+        userName: user.name || 'Customer',
+        userPhone: user.phone || '',
+        userVillage: user.village || '',
         vehicleType: vehicleType,
         pickup: {
           name: pickup.name,

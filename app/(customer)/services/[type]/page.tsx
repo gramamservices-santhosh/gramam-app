@@ -6,9 +6,8 @@ import { ArrowLeft, Check } from 'lucide-react';
 import { getServiceCategory } from '@/constants/services';
 import { useAuthStore } from '@/store/authStore';
 import { generateOrderId } from '@/lib/utils';
-import { db, auth } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
 import { ServiceType } from '@/types';
 import AdModal from '@/components/ads/AdModal';
 
@@ -17,7 +16,7 @@ export default function ServiceTypePage() {
   const router = useRouter();
   const serviceType = params.type as string;
 
-  const { user } = useAuthStore();
+  const { user, isAuthenticated, _hasHydrated } = useAuthStore();
 
   const [selectedOption, setSelectedOption] = useState('');
   const [description, setDescription] = useState('');
@@ -30,19 +29,14 @@ export default function ServiceTypePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-  const [authReady, setAuthReady] = useState(false);
   const [showAd, setShowAd] = useState(false);
 
-  // Wait for Firebase Auth to initialize
+  // Check auth after hydration
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setAuthReady(true);
-      if (!firebaseUser && !user) {
-        router.push('/login');
-      }
-    });
-    return () => unsubscribe();
-  }, [user, router]);
+    if (_hasHydrated && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [_hasHydrated, isAuthenticated, router]);
 
   const service = getServiceCategory(serviceType);
 
@@ -63,16 +57,15 @@ export default function ServiceTypePage() {
 
   // Validate and show ad
   const handleShowAd = () => {
-    // Wait for auth to be ready
-    if (!authReady) {
+    // Wait for hydration
+    if (!_hasHydrated) {
       setError('Please wait, loading...');
       setTimeout(() => setError(''), 2000);
       return;
     }
 
-    // Check if Firebase Auth session is still active
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
+    // Check auth
+    if (!isAuthenticated || !user) {
       setError('Please login to book service.');
       setTimeout(() => router.push('/login'), 1500);
       return;
@@ -100,8 +93,7 @@ export default function ServiceTypePage() {
     setIsLoading(true);
 
     try {
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
+      if (!isAuthenticated || !user) {
         setError('Please login to book service.');
         setTimeout(() => router.push('/login'), 1500);
         return;
@@ -113,9 +105,9 @@ export default function ServiceTypePage() {
       const order: Record<string, any> = {
         id: orderId,
         type: 'service',
-        userId: currentUser.uid,
-        userName: user?.name || currentUser.displayName || 'Customer',
-        userPhone: user?.phone || currentUser.phoneNumber || '',
+        userId: user.id,
+        userName: user.name || 'Customer',
+        userPhone: user.phone || '',
         userVillage: address.village,
         serviceType: serviceType,
         serviceOption: option?.name || selectedOption,

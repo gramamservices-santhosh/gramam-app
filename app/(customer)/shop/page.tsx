@@ -6,50 +6,42 @@ import Link from 'next/link';
 import { ArrowLeft, ShoppingBag, Send, Package, Truck, Phone } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { generateOrderId } from '@/lib/utils';
-import { db, auth } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
 import AdModal from '@/components/ads/AdModal';
 
 export default function ShopPage() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, isAuthenticated, _hasHydrated } = useAuthStore();
 
   const [orderList, setOrderList] = useState('');
   const [notes, setNotes] = useState('');
   const [address, setAddress] = useState({
-    village: user?.village || '',
+    village: '',
     street: '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [authReady, setAuthReady] = useState(false);
   const [showAd, setShowAd] = useState(false);
 
-  // Wait for Firebase Auth to initialize
+  // Set default address from user
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setAuthReady(true);
-      if (!firebaseUser && !user) {
-        router.push('/login');
-      }
-    });
-    return () => unsubscribe();
-  }, [user, router]);
+    if (user?.village) {
+      setAddress(prev => ({ ...prev, village: prev.village || user.village }));
+    }
+  }, [user]);
+
+  // Check auth after hydration
+  useEffect(() => {
+    if (_hasHydrated && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [_hasHydrated, isAuthenticated, router]);
 
   // Validate before showing ad
   const handleShowAd = () => {
-    // Wait for auth to be ready
-    if (!authReady) {
-      setError('Please wait, loading...');
-      setTimeout(() => setError(''), 2000);
-      return;
-    }
-
-    // Check auth
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
+    if (!isAuthenticated || !user) {
       setError('Please login to place order');
       setTimeout(() => router.push('/login'), 1500);
       return;
@@ -77,8 +69,7 @@ export default function ShopPage() {
     setIsLoading(true);
 
     try {
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
+      if (!user) {
         setError('Please login to place order');
         setTimeout(() => router.push('/login'), 1500);
         return;
@@ -89,9 +80,9 @@ export default function ShopPage() {
       const order: Record<string, any> = {
         id: orderId,
         type: 'shopping',
-        userId: currentUser.uid,
-        userName: user?.name || currentUser.displayName || 'Customer',
-        userPhone: user?.phone || currentUser.phoneNumber || '',
+        userId: user.id,
+        userName: user.name || 'Customer',
+        userPhone: user.phone || '',
         userVillage: address.village,
         isCustomOrder: true,
         customOrderDescription: orderList.trim(),
@@ -133,6 +124,15 @@ export default function ShopPage() {
       setIsLoading(false);
     }
   };
+
+  // Show loading while hydrating
+  if (!_hasHydrated) {
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: '#64748b' }}>Loading...</p>
+      </div>
+    );
+  }
 
   if (success) {
     return (
