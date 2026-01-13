@@ -1,16 +1,14 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { Search, ChevronRight, Phone, ShoppingCart, Bike, Wrench, PartyPopper } from 'lucide-react';
-import { CATEGORIES } from '@/constants/categories';
 import { useAuthStore } from '@/store/authStore';
 
 const services = [
-  { id: 'shopping', name: 'Shopping', description: 'Groceries & more', href: '/shop', icon: ShoppingCart, color: '#3b82f6', bg: '#eff6ff' },
-  { id: 'transport', name: 'Transport', description: 'Bike or auto rides', href: '/ride', icon: Bike, color: '#f97316', bg: '#fff7ed' },
-  { id: 'services', name: 'Services', description: 'Plumbing & electrical', href: '/services', icon: Wrench, color: '#059669', bg: '#ecfdf5' },
-  { id: 'events', name: 'Events', description: 'Festivals & more', href: '/services?type=events', icon: PartyPopper, color: '#8b5cf6', bg: '#f5f3ff' },
+  { id: 'shopping', name: 'Shopping', description: 'Write what you need', href: '/shop', icon: ShoppingCart, color: '#3b82f6', bg: '#eff6ff' },
+  { id: 'transport', name: 'Ride', description: 'Bike or auto rides', href: '/ride', icon: Bike, color: '#f97316', bg: '#fff7ed' },
+  { id: 'services', name: 'Services', description: 'Plumbing, electrical & more', href: '/services', icon: Wrench, color: '#059669', bg: '#ecfdf5' },
+  { id: 'events', name: 'Events', description: 'Festivals & ceremonies', href: '/services?type=events', icon: PartyPopper, color: '#8b5cf6', bg: '#f5f3ff' },
 ];
 
 export default function HomePage() {
@@ -37,7 +35,7 @@ export default function HomePage() {
             </div>
             <div>
               <p style={{ fontSize: '11px', color: '#64748b', margin: 0 }}>Deliver to</p>
-              <p style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b', margin: 0 }}>{user?.village || 'Select location'}</p>
+              <p style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b', margin: 0 }}>{user?.village || 'Vaniyambadi'} ▾</p>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -73,14 +71,14 @@ export default function HomePage() {
             boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
           }}>
             <Search style={{ width: '20px', height: '20px', color: '#94a3b8' }} />
-            <span style={{ fontSize: '14px', color: '#94a3b8' }}>Search products, services...</span>
+            <span style={{ fontSize: '14px', color: '#94a3b8' }}>Tell us what you need...</span>
           </div>
         </Link>
       </div>
 
-      {/* Services */}
+      {/* Services Grid */}
       <div style={{ padding: '0 16px', marginBottom: '32px' }}>
-        <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', marginBottom: '16px' }}>Services</h2>
+        <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', marginBottom: '16px' }}>Our Services</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
           {services.map((service) => {
             const Icon = service.icon;
@@ -114,35 +112,45 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Categories */}
-      <div style={{ marginBottom: '32px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', marginBottom: '16px' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Shop by Category</h2>
-          <Link href="/shop" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '14px', color: '#059669', fontWeight: '500', textDecoration: 'none' }}>
-            See All
-            <ChevronRight style={{ width: '16px', height: '16px' }} />
-          </Link>
-        </div>
-        <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', padding: '0 16px', paddingBottom: '8px' }}>
-          {CATEGORIES.slice(0, 6).map((category) => (
-            <Link key={category.id} href={`/shop/${category.id}`} style={{ textDecoration: 'none', flexShrink: 0 }}>
-              <div style={{
-                width: '80px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '12px',
-                backgroundColor: '#ffffff',
-                border: '1px solid #e2e8f0',
-                borderRadius: '12px',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-              }}>
-                <span style={{ fontSize: '28px' }}>{category.icon}</span>
-                <span style={{ fontSize: '11px', color: '#374151', fontWeight: '500', textAlign: 'center' }}>{category.name}</span>
+      {/* How It Works */}
+      <div style={{ padding: '0 16px', marginBottom: '32px' }}>
+        <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', marginBottom: '16px' }}>How It Works</h2>
+        <div style={{
+          backgroundColor: '#ffffff',
+          border: '1px solid #e2e8f0',
+          borderRadius: '12px',
+          padding: '20px',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+        }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <div style={{ width: '32px', height: '32px', backgroundColor: '#ecfdf5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: '14px' }}>1</span>
               </div>
-            </Link>
-          ))}
+              <div>
+                <h4 style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Tell Us What You Need</h4>
+                <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>Write a list of items or describe your service need</p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <div style={{ width: '32px', height: '32px', backgroundColor: '#ecfdf5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: '14px' }}>2</span>
+              </div>
+              <div>
+                <h4 style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>We Call You</h4>
+                <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>Our team will call to confirm details and pricing</p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <div style={{ width: '32px', height: '32px', backgroundColor: '#ecfdf5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: '14px' }}>3</span>
+              </div>
+              <div>
+                <h4 style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Delivered to Your Door</h4>
+                <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>Get your items or service delivered at your doorstep</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -157,8 +165,8 @@ export default function HomePage() {
           justifyContent: 'space-between'
         }}>
           <div>
-            <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#ffffff', margin: 0 }}>Free Delivery</h3>
-            <p style={{ fontSize: '14px', color: '#a7f3d0', marginTop: '4px' }}>On orders above Rs. 500</p>
+            <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#ffffff', margin: 0 }}>Delivery Charge</h3>
+            <p style={{ fontSize: '14px', color: '#a7f3d0', marginTop: '4px' }}>Only Rs. 50-100 per order</p>
             <Link href="/shop" style={{
               display: 'inline-block',
               marginTop: '16px',

@@ -21,7 +21,7 @@ const STATUS_OPTIONS = [
 const TYPE_OPTIONS = [
   { value: 'all', label: 'All Types' },
   { value: 'shopping', label: 'Shopping' },
-  { value: 'transport', label: 'Transport' },
+  { value: 'ride', label: 'Ride' },
   { value: 'service', label: 'Service' },
 ];
 
@@ -75,6 +75,7 @@ export default function AdminOrdersPage() {
   const getTypeIcon = (type: string) => {
     switch (type) {
       case 'shopping': return '🛒';
+      case 'ride': return '🛵';
       case 'transport': return '🏍️';
       case 'service': return '🔧';
       default: return '📦';

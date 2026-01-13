@@ -1,29 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Package, ChevronRight } from 'lucide-react';
-
-type Order = {
-  id: string;
-  type: 'shopping' | 'transport' | 'service';
-  status: 'pending' | 'confirmed' | 'in_progress' | 'delivered' | 'completed' | 'cancelled';
-  date: string;
-  total: number;
-  items?: string;
-  pickup?: string;
-  drop?: string;
-  service?: string;
-};
-
-// Sample orders for demo
-const sampleOrders: Order[] = [
-  { id: 'ORD001', type: 'shopping', status: 'delivered', date: '2024-01-08', total: 450, items: '5 items from Grocery' },
-  { id: 'ORD002', type: 'transport', status: 'completed', date: '2024-01-07', total: 85, pickup: 'Vaniyambadi Bus Stand', drop: 'Railway Station' },
-  { id: 'ORD003', type: 'service', status: 'in_progress', date: '2024-01-07', total: 500, service: 'Plumbing - Tap Repair' },
-  { id: 'ORD004', type: 'shopping', status: 'pending', date: '2024-01-06', total: 320, items: '3 items from Vegetables' },
-];
+import { db, auth } from '@/lib/firebase';
+import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+import { Order } from '@/types';
+import { formatDate, formatPrice } from '@/lib/utils';
 
 const statusFilters = [
   { id: 'all', label: 'All' },
@@ -34,33 +19,82 @@ const statusFilters = [
 
 const typeFilters = [
   { id: 'all', label: 'All Types', icon: '📋' },
-  { id: 'shopping', label: 'Shopping', icon: '📦' },
-  { id: 'transport', label: 'Transport', icon: '🛵' },
+  { id: 'shopping', label: 'Shopping', icon: '🛒' },
+  { id: 'ride', label: 'Ride', icon: '🛵' },
   { id: 'service', label: 'Services', icon: '🔧' },
 ];
 
 const statusColors: Record<string, { bg: string; text: string }> = {
   pending: { bg: '#fef3c7', text: '#d97706' },
   confirmed: { bg: '#dbeafe', text: '#2563eb' },
-  in_progress: { bg: '#e0e7ff', text: '#4f46e5' },
+  assigned: { bg: '#e0e7ff', text: '#4f46e5' },
+  picked: { bg: '#dbeafe', text: '#2563eb' },
+  onway: { bg: '#dbeafe', text: '#2563eb' },
   delivered: { bg: '#dcfce7', text: '#16a34a' },
   completed: { bg: '#dcfce7', text: '#16a34a' },
   cancelled: { bg: '#fee2e2', text: '#dc2626' },
 };
 
 const typeIcons: Record<string, string> = {
-  shopping: '📦',
+  shopping: '🛒',
   transport: '🛵',
+  ride: '🛵',
   service: '🔧',
 };
 
 export default function OrdersPage() {
   const router = useRouter();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // Listen for auth state
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserId(user.uid);
+      } else {
+        setUserId(null);
+        setIsLoading(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Fetch orders from Firestore
+  useEffect(() => {
+    if (!userId) {
+      setOrders([]);
+      setIsLoading(false);
+      return;
+    }
+
+    const ordersRef = collection(db, 'orders');
+    const q = query(
+      ordersRef,
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const ordersData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Order[];
+      setOrders(ordersData);
+      setIsLoading(false);
+    }, (error) => {
+      console.error('Error fetching orders:', error);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [userId]);
 
   // Filter orders
-  const filteredOrders = sampleOrders.filter((order) => {
+  const filteredOrders = orders.filter((order) => {
     // Status filter
     if (statusFilter === 'active') {
       if (['completed', 'delivered', 'cancelled'].includes(order.status)) return false;
@@ -77,9 +111,17 @@ export default function OrdersPage() {
   });
 
   const getOrderDescription = (order: Order) => {
-    if (order.type === 'shopping') return order.items || 'Shopping order';
-    if (order.type === 'transport') return `${order.pickup} → ${order.drop}`;
-    if (order.type === 'service') return order.service || 'Service request';
+    if (order.type === 'shopping') {
+      return order.isCustomOrder
+        ? order.customOrderDescription?.slice(0, 50) + '...'
+        : `${order.items?.length || 0} items`;
+    }
+    if (order.type === 'transport' || order.type === 'ride') {
+      return `${order.pickup?.name || 'Pickup'} → ${order.drop?.name || 'Drop'}`;
+    }
+    if (order.type === 'service') {
+      return order.serviceOption || order.description || 'Service request';
+    }
     return 'Order';
   };
 
@@ -161,8 +203,18 @@ export default function OrdersPage() {
           ))}
         </div>
 
-        {/* Orders List */}
-        {filteredOrders.length > 0 ? (
+        {/* Loading */}
+        {isLoading ? (
+          <div style={{
+            backgroundColor: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '12px',
+            padding: '48px 24px',
+            textAlign: 'center'
+          }}>
+            <p style={{ fontSize: '14px', color: '#64748b' }}>Loading orders...</p>
+          </div>
+        ) : filteredOrders.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {filteredOrders.map((order) => {
               const statusColor = statusColors[order.status] || { bg: '#f1f5f9', text: '#64748b' };
@@ -190,11 +242,11 @@ export default function OrdersPage() {
                         justifyContent: 'center',
                         fontSize: '20px'
                       }}>
-                        {typeIcons[order.type]}
+                        {typeIcons[order.type] || '📦'}
                       </div>
                       <div>
-                        <p style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{order.id}</p>
-                        <p style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>{order.date}</p>
+                        <p style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', margin: 0 }}>#{order.id.slice(-6)}</p>
+                        <p style={{ fontSize: '13px', color: '#64748b', marginTop: '2px', textTransform: 'capitalize' }}>{order.type}</p>
                       </div>
                     </div>
                     <span style={{
@@ -213,7 +265,14 @@ export default function OrdersPage() {
                     {getOrderDescription(order)}
                   </p>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #f1f5f9', paddingTop: '12px' }}>
-                    <span style={{ fontSize: '16px', fontWeight: '600', color: '#059669' }}>Rs {order.total}</span>
+                    <div>
+                      <span style={{ fontSize: '16px', fontWeight: '600', color: '#059669' }}>
+                        {order.totalAmount > 0 ? formatPrice(order.totalAmount) : 'TBD'}
+                      </span>
+                      <span style={{ fontSize: '12px', color: '#94a3b8', marginLeft: '8px' }}>
+                        {formatDate(order.createdAt)}
+                      </span>
+                    </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#64748b' }}>
                       <span style={{ fontSize: '13px' }}>View Details</span>
                       <ChevronRight style={{ width: '16px', height: '16px' }} />
@@ -234,7 +293,9 @@ export default function OrdersPage() {
             <span style={{ fontSize: '48px', display: 'block', marginBottom: '16px' }}>📋</span>
             <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: '0 0 8px' }}>No Orders Found</h2>
             <p style={{ fontSize: '14px', color: '#64748b', margin: '0 0 20px' }}>
-              {statusFilter === 'all' ? "You haven't placed any orders yet" : `No ${statusFilter} orders`}
+              {statusFilter === 'all' && typeFilter === 'all'
+                ? "You haven't placed any orders yet"
+                : 'No orders match your filters'}
             </p>
             <Link href="/home" style={{ textDecoration: 'none' }}>
               <button style={{
