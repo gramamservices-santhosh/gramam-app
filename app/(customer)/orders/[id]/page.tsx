@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Phone, MessageCircle, MapPin } from 'lucide-react';
+import { ArrowLeft, Phone, MessageCircle, MapPin, Star, Send } from 'lucide-react';
 import OrderTimeline from '@/components/orders/OrderTimeline';
 import { useAuthStore } from '@/store/authStore';
 import { db } from '@/lib/firebase';
@@ -49,6 +49,12 @@ export default function OrderDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  // Rating states
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [review, setReview] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   useEffect(() => {
     if (!orderId) return;
@@ -100,6 +106,33 @@ export default function OrderDetailPage() {
       console.error('Error cancelling order:', err);
       setError('Failed to cancel order');
       setTimeout(() => setError(''), 3000);
+    }
+  };
+
+  const handleSubmitReview = async () => {
+    if (!order || !rating) {
+      setError('Please select a rating');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    setIsSubmittingReview(true);
+    try {
+      const orderRef = doc(db, 'orders', order.id);
+      await updateDoc(orderRef, {
+        rating,
+        review: review.trim() || null,
+        reviewedAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      });
+      setSuccessMsg('Thank you for your feedback!');
+      setTimeout(() => setSuccessMsg(''), 3000);
+    } catch (err) {
+      console.error('Error submitting review:', err);
+      setError('Failed to submit review');
+      setTimeout(() => setError(''), 3000);
+    } finally {
+      setIsSubmittingReview(false);
     }
   };
 
@@ -341,6 +374,149 @@ export default function OrderDetailPage() {
                 <Phone style={{ width: '20px', height: '20px', color: '#16a34a' }} />
               </a>
             </div>
+          </div>
+        )}
+
+        {/* Rating & Review Section - Show for completed orders */}
+        {['delivered', 'completed'].includes(order.status) && (
+          <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', margin: '0 0 16px' }}>
+              {order.rating ? 'Your Review' : 'Rate Your Order'}
+            </h3>
+
+            {order.rating ? (
+              // Show existing review
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                      key={star}
+                      style={{
+                        width: '24px',
+                        height: '24px',
+                        fill: star <= order.rating! ? '#f59e0b' : 'transparent',
+                        color: star <= order.rating! ? '#f59e0b' : '#e2e8f0'
+                      }}
+                    />
+                  ))}
+                  <span style={{ fontSize: '14px', fontWeight: '600', color: '#f59e0b', marginLeft: '4px' }}>
+                    {order.rating}/5
+                  </span>
+                </div>
+                {order.review && (
+                  <p style={{
+                    fontSize: '14px',
+                    color: '#64748b',
+                    margin: 0,
+                    padding: '12px',
+                    backgroundColor: '#f8fafc',
+                    borderRadius: '8px',
+                    fontStyle: 'italic'
+                  }}>
+                    &quot;{order.review}&quot;
+                  </p>
+                )}
+                <p style={{ fontSize: '12px', color: '#94a3b8', margin: '12px 0 0' }}>
+                  Thank you for your feedback!
+                </p>
+              </div>
+            ) : (
+              // Show review form
+              <div>
+                {/* Star Rating */}
+                <div style={{ marginBottom: '16px' }}>
+                  <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 8px' }}>How was your experience?</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        onClick={() => setRating(star)}
+                        onMouseEnter={() => setHoverRating(star)}
+                        onMouseLeave={() => setHoverRating(0)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '4px'
+                        }}
+                      >
+                        <Star
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            fill: star <= (hoverRating || rating) ? '#f59e0b' : 'transparent',
+                            color: star <= (hoverRating || rating) ? '#f59e0b' : '#e2e8f0',
+                            transition: 'all 0.15s ease'
+                          }}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                  {rating > 0 && (
+                    <p style={{ fontSize: '13px', color: '#f59e0b', margin: '8px 0 0', fontWeight: '500' }}>
+                      {rating === 1 && 'Poor'}
+                      {rating === 2 && 'Fair'}
+                      {rating === 3 && 'Good'}
+                      {rating === 4 && 'Very Good'}
+                      {rating === 5 && 'Excellent!'}
+                    </p>
+                  )}
+                </div>
+
+                {/* Review Text */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ fontSize: '13px', color: '#64748b', display: 'block', marginBottom: '8px' }}>
+                    Write a review (optional)
+                  </label>
+                  <textarea
+                    value={review}
+                    onChange={(e) => setReview(e.target.value)}
+                    placeholder="Share your experience..."
+                    rows={3}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      fontSize: '14px',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '10px',
+                      backgroundColor: '#f8fafc',
+                      color: '#1e293b',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      resize: 'none'
+                    }}
+                  />
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  onClick={handleSubmitReview}
+                  disabled={!rating || isSubmittingReview}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    backgroundColor: rating ? '#059669' : '#94a3b8',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: rating && !isSubmittingReview ? 'pointer' : 'not-allowed',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  {isSubmittingReview ? 'Submitting...' : (
+                    <>
+                      <Send style={{ width: '16px', height: '16px' }} />
+                      Submit Review
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

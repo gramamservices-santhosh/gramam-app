@@ -3,12 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Package, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Package, ChevronRight, RotateCcw } from 'lucide-react';
 import { db, auth } from '@/lib/firebase';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { Order } from '@/types';
 import { formatDate, formatPrice } from '@/lib/utils';
+import { useCartStore } from '@/store/cartStore';
 
 const statusFilters = [
   { id: 'all', label: 'All' },
@@ -49,6 +50,37 @@ export default function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [userId, setUserId] = useState<string | null>(null);
+  const [reorderSuccess, setReorderSuccess] = useState<string | null>(null);
+  const { addItem, clearCart } = useCartStore();
+
+  const handleReorder = (order: Order, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (order.type !== 'shopping' || !order.items || order.items.length === 0) {
+      alert('This order type cannot be reordered');
+      return;
+    }
+
+    // Clear existing cart and add items from this order
+    clearCart();
+    order.items.forEach(item => {
+      addItem({
+        productId: item.productId,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        total: item.total,
+        image: item.image,
+        unit: item.unit,
+      });
+    });
+
+    setReorderSuccess(order.id);
+    setTimeout(() => {
+      setReorderSuccess(null);
+      router.push('/cart');
+    }, 1000);
+  };
 
   // Listen for auth state
   useEffect(() => {
@@ -273,9 +305,33 @@ export default function OrdersPage() {
                         {formatDate(order.createdAt)}
                       </span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#64748b' }}>
-                      <span style={{ fontSize: '13px' }}>View Details</span>
-                      <ChevronRight style={{ width: '16px', height: '16px' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {/* Reorder Button - Only for shopping orders */}
+                      {order.type === 'shopping' && order.items && order.items.length > 0 && (
+                        <button
+                          onClick={(e) => handleReorder(order, e)}
+                          style={{
+                            padding: '6px 12px',
+                            backgroundColor: reorderSuccess === order.id ? '#dcfce7' : '#fef3c7',
+                            color: reorderSuccess === order.id ? '#16a34a' : '#d97706',
+                            border: 'none',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            fontWeight: '500',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <RotateCcw style={{ width: '14px', height: '14px' }} />
+                          {reorderSuccess === order.id ? 'Added!' : 'Reorder'}
+                        </button>
+                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#64748b' }}>
+                        <span style={{ fontSize: '13px' }}>View</span>
+                        <ChevronRight style={{ width: '16px', height: '16px' }} />
+                      </div>
                     </div>
                   </div>
                 </div>
