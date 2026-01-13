@@ -291,6 +291,31 @@ export default function LoginPage() {
           </p>
         </div>
 
+        {/* Partner Registration Link */}
+        <div style={{
+          backgroundColor: '#f0fdf4',
+          border: '1px solid #bbf7d0',
+          borderRadius: '12px',
+          padding: '16px',
+          marginTop: '16px',
+          textAlign: 'center'
+        }}>
+          <p style={{ fontSize: '13px', color: '#374151', margin: '0 0 8px' }}>
+            Want to become a delivery partner or rider?
+          </p>
+          <Link
+            href="/partner-register"
+            style={{
+              color: '#059669',
+              fontWeight: '600',
+              fontSize: '14px',
+              textDecoration: 'none'
+            }}
+          >
+            Register as Partner →
+          </Link>
+        </div>
+
         {/* Footer */}
         <p style={{ textAlign: 'center', fontSize: '12px', color: '#94a3b8', marginTop: '24px' }}>
           Serving Vaniyambadi & Thirupathur District

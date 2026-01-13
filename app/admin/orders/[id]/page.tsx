@@ -2,11 +2,25 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Phone, MapPin, User, CheckCircle, XCircle, Truck } from 'lucide-react';
+import { ArrowLeft, Phone, MapPin, User, CheckCircle, XCircle, Truck, UserPlus, X } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { Order } from '@/types';
 import { formatPrice, formatDate } from '@/lib/utils';
+
+interface Partner {
+  id: string;
+  name: string;
+  phone: string;
+  village: string;
+  vehicleType: string;
+  vehicleNumber: string;
+  status: string;
+  isActive: boolean;
+  documents?: {
+    selfie?: string;
+  };
+}
 
 // Different status flows for different order types
 const STATUS_FLOWS: Record<string, string[]> = {
@@ -52,17 +66,104 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
   const [successMsg, setSuccessMsg] = useState('');
   const [error, setError] = useState('');
 
+  // Partner assignment state
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assignedPartner, setAssignedPartner] = useState<Partner | null>(null);
+  const [loadingPartners, setLoadingPartners] = useState(false);
+
   useEffect(() => {
     const orderRef = doc(db, 'orders', id);
     const unsubscribe = onSnapshot(orderRef, (doc) => {
       if (doc.exists()) {
-        setOrder({ id: doc.id, ...doc.data() } as Order);
+        const orderData = { id: doc.id, ...doc.data() } as Order & { assignedPartner?: Partner };
+        setOrder(orderData);
+        // Set assigned partner if exists
+        if (orderData.assignedPartner) {
+          setAssignedPartner(orderData.assignedPartner);
+        }
       }
       setIsLoading(false);
     });
 
     return () => unsubscribe();
   }, [id]);
+
+  // Fetch available partners when modal opens
+  const fetchPartners = async () => {
+    setLoadingPartners(true);
+    try {
+      const partnersRef = collection(db, 'partners');
+      const q = query(
+        partnersRef,
+        where('status', '==', 'approved'),
+        where('isActive', '==', true)
+      );
+      const snapshot = await getDocs(q);
+      const partnersData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Partner[];
+      setPartners(partnersData);
+    } catch (err) {
+      console.error('Error fetching partners:', err);
+    } finally {
+      setLoadingPartners(false);
+    }
+  };
+
+  const handleOpenAssignModal = () => {
+    fetchPartners();
+    setShowAssignModal(true);
+  };
+
+  const handleAssignPartner = async (partner: Partner) => {
+    if (!order) return;
+    setIsUpdating(true);
+    try {
+      const orderRef = doc(db, 'orders', order.id);
+      await updateDoc(orderRef, {
+        assignedPartner: {
+          id: partner.id,
+          name: partner.name,
+          phone: partner.phone,
+          vehicleType: partner.vehicleType,
+          vehicleNumber: partner.vehicleNumber,
+          selfie: partner.documents?.selfie || null,
+        },
+        updatedAt: serverTimestamp(),
+      });
+      setAssignedPartner(partner);
+      setShowAssignModal(false);
+      setSuccessMsg(`Partner ${partner.name} assigned to order`);
+      setTimeout(() => setSuccessMsg(''), 3000);
+    } catch (err) {
+      setError('Failed to assign partner');
+      setTimeout(() => setError(''), 3000);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleRemovePartner = async () => {
+    if (!order) return;
+    setIsUpdating(true);
+    try {
+      const orderRef = doc(db, 'orders', order.id);
+      await updateDoc(orderRef, {
+        assignedPartner: null,
+        updatedAt: serverTimestamp(),
+      });
+      setAssignedPartner(null);
+      setSuccessMsg('Partner removed from order');
+      setTimeout(() => setSuccessMsg(''), 3000);
+    } catch (err) {
+      setError('Failed to remove partner');
+      setTimeout(() => setError(''), 3000);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   const updateStatus = async (newStatus: string) => {
     if (!order) return;
@@ -323,6 +424,90 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
             </div>
           </div>
 
+          {/* Assigned Partner */}
+          {(order.type === 'ride' || order.type === 'transport' || order.type === 'shopping') && order.status !== 'cancelled' && (
+            <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: '0 0 16px' }}>
+                {order.type === 'ride' || order.type === 'transport' ? 'Assigned Driver' : 'Delivery Partner'}
+              </h2>
+
+              {assignedPartner ? (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                    <div style={{
+                      width: '50px',
+                      height: '50px',
+                      borderRadius: '10px',
+                      overflow: 'hidden',
+                      backgroundColor: '#f1f5f9'
+                    }}>
+                      {assignedPartner.documents?.selfie ? (
+                        <img src={assignedPartner.documents.selfie} alt={assignedPartner.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <User style={{ width: '20px', height: '20px', color: '#94a3b8' }} />
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontWeight: '600', color: '#1e293b', margin: 0 }}>{assignedPartner.name}</p>
+                      <p style={{ fontSize: '13px', color: '#64748b', margin: '2px 0 0' }}>
+                        {assignedPartner.vehicleType === 'auto' ? '🛺' : '🏍️'} {assignedPartner.vehicleNumber}
+                      </p>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                    <Phone style={{ width: '14px', height: '14px', color: '#64748b' }} />
+                    <span style={{ fontSize: '13px', color: '#64748b' }}>{assignedPartner.phone}</span>
+                  </div>
+                  <button
+                    onClick={handleRemovePartner}
+                    disabled={isUpdating}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      backgroundColor: '#fef2f2',
+                      color: '#dc2626',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: '500',
+                      cursor: isUpdating ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    Remove Partner
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <p style={{ fontSize: '14px', color: '#64748b', margin: '0 0 12px' }}>No partner assigned yet</p>
+                  <button
+                    onClick={handleOpenAssignModal}
+                    disabled={isUpdating}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      backgroundColor: '#059669',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: isUpdating ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <UserPlus style={{ width: '18px', height: '18px' }} />
+                    Assign Partner
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Timeline */}
           <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
             <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: '0 0 16px' }}>Order Timeline</h2>
@@ -355,6 +540,136 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
           </div>
         </div>
       </div>
+
+      {/* Assign Partner Modal */}
+      {showAssignModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          padding: '20px'
+        }}>
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '500px',
+            maxHeight: '80vh',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              padding: '20px',
+              borderBottom: '1px solid #e2e8f0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Select Partner</h2>
+              <button
+                onClick={() => setShowAssignModal(false)}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  backgroundColor: '#f1f5f9',
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <X style={{ width: '18px', height: '18px', color: '#64748b' }} />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div style={{ padding: '16px', overflowY: 'auto', flex: 1 }}>
+              {loadingPartners ? (
+                <div style={{ textAlign: 'center', padding: '32px' }}>
+                  <p style={{ color: '#64748b' }}>Loading partners...</p>
+                </div>
+              ) : partners.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px' }}>
+                  <User style={{ width: '40px', height: '40px', color: '#94a3b8', margin: '0 auto 12px' }} />
+                  <p style={{ color: '#64748b', margin: 0 }}>No available partners found</p>
+                  <p style={{ fontSize: '13px', color: '#94a3b8', margin: '8px 0 0' }}>Partners must be approved and active</p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {partners.map((partner) => (
+                    <button
+                      key={partner.id}
+                      onClick={() => handleAssignPartner(partner)}
+                      disabled={isUpdating}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        padding: '12px',
+                        backgroundColor: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '12px',
+                        cursor: isUpdating ? 'not-allowed' : 'pointer',
+                        textAlign: 'left'
+                      }}
+                    >
+                      <div style={{
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '10px',
+                        overflow: 'hidden',
+                        backgroundColor: '#e2e8f0',
+                        flexShrink: 0
+                      }}>
+                        {partner.documents?.selfie ? (
+                          <img src={partner.documents.selfie} alt={partner.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <User style={{ width: '20px', height: '20px', color: '#94a3b8' }} />
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontWeight: '600', color: '#1e293b', margin: 0, fontSize: '14px' }}>{partner.name}</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '4px' }}>
+                          <span style={{ fontSize: '12px', color: '#64748b' }}>
+                            {partner.vehicleType === 'auto' ? '🛺' : '🏍️'} {partner.vehicleNumber}
+                          </span>
+                          <span style={{ fontSize: '12px', color: '#64748b' }}>
+                            📍 {partner.village}
+                          </span>
+                        </div>
+                      </div>
+                      <div style={{
+                        padding: '6px 12px',
+                        backgroundColor: '#059669',
+                        color: '#ffffff',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: '500'
+                      }}>
+                        Assign
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -11,13 +11,15 @@ import {
   Settings,
   LogOut,
   Home,
-  Megaphone
+  Megaphone,
+  Bike
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 
 const menuItems = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/orders', label: 'Orders', icon: ClipboardList },
+  { href: '/admin/partners', label: 'Partners', icon: Bike },
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/ads', label: 'Advertisements', icon: Megaphone },
   { href: '/admin/team', label: 'Team', icon: UsersRound },

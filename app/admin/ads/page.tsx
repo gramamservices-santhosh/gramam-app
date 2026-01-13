@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Plus, Trash2, Eye, EyeOff, Image, Video, Upload } from 'lucide-react';
-import { db } from '@/lib/firebase';
+import { useState, useEffect, useRef } from 'react';
+import { Plus, Trash2, Eye, EyeOff, Image, Video, Upload, X } from 'lucide-react';
+import { db, storage } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, doc, setDoc, deleteDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 interface Ad {
   id: string;
@@ -26,6 +27,10 @@ export default function AdsManagementPage() {
     duration: 5,
   });
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch ads
   useEffect(() => {
@@ -44,22 +49,78 @@ export default function AdsManagementPage() {
     return () => unsubscribe();
   }, []);
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSelectedFile(file);
+
+    // Create preview URL
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+
+    // Auto-detect type
+    if (file.type.startsWith('video/')) {
+      setFormData({ ...formData, type: 'video' });
+    } else {
+      setFormData({ ...formData, type: 'image' });
+    }
+  };
+
+  const handleUploadFile = async (): Promise<string | null> => {
+    if (!selectedFile) return null;
+
+    setUploading(true);
+    try {
+      const timestamp = Date.now();
+      const fileName = `ads/${timestamp}_${selectedFile.name}`;
+      const storageRef = ref(storage, fileName);
+
+      await uploadBytes(storageRef, selectedFile);
+      const downloadUrl = await getDownloadURL(storageRef);
+
+      return downloadUrl;
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleAddAd = async () => {
-    if (!formData.title || !formData.url) return;
+    if (!formData.title || (!formData.url && !selectedFile)) return;
 
     setSaving(true);
     try {
+      let finalUrl = formData.url;
+
+      // Upload file if selected
+      if (selectedFile) {
+        const uploadedUrl = await handleUploadFile();
+        if (uploadedUrl) {
+          finalUrl = uploadedUrl;
+        } else {
+          alert('Failed to upload file. Please try again.');
+          setSaving(false);
+          return;
+        }
+      }
+
       const adId = `ad_${Date.now()}`;
       await setDoc(doc(db, 'advertisements', adId), {
         title: formData.title,
         type: formData.type,
-        url: formData.url,
+        url: finalUrl,
         duration: formData.duration,
         isActive: true,
         createdAt: Timestamp.now(),
       });
 
+      // Reset form
       setFormData({ title: '', type: 'image', url: '', duration: 5 });
+      setSelectedFile(null);
+      setPreviewUrl('');
       setShowForm(false);
     } catch (error) {
       console.error('Error adding ad:', error);
@@ -171,15 +232,111 @@ export default function AdsManagementPage() {
               </select>
             </div>
 
+            {/* File Upload Section */}
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '6px' }}>
-                Media URL * (Direct link to image/video)
+                Upload Media *
               </label>
+
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,video/*"
+                onChange={handleFileSelect}
+                style={{ display: 'none' }}
+              />
+
+              {!selectedFile && !formData.url ? (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    border: '2px dashed #e2e8f0',
+                    borderRadius: '12px',
+                    padding: '32px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    backgroundColor: '#f8fafc'
+                  }}
+                >
+                  <Upload style={{ width: '40px', height: '40px', color: '#94a3b8', margin: '0 auto 12px' }} />
+                  <p style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b', margin: '0 0 4px' }}>
+                    Click to upload image or video
+                  </p>
+                  <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>
+                    Supports JPG, PNG, GIF, MP4, WebM
+                  </p>
+                </div>
+              ) : (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px',
+                  backgroundColor: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px'
+                }}>
+                  {selectedFile ? (
+                    <>
+                      <div style={{
+                        width: '60px',
+                        height: '60px',
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                        backgroundColor: '#e2e8f0'
+                      }}>
+                        {formData.type === 'video' ? (
+                          <video src={previewUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                        ) : (
+                          <img src={previewUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        )}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b', margin: 0 }}>{selectedFile.name}</p>
+                        <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0' }}>
+                          {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedFile(null);
+                          setPreviewUrl('');
+                          if (fileInputRef.current) fileInputRef.current.value = '';
+                        }}
+                        style={{
+                          padding: '8px',
+                          backgroundColor: '#fee2e2',
+                          border: 'none',
+                          borderRadius: '8px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <X style={{ width: '16px', height: '16px', color: '#dc2626' }} />
+                      </button>
+                    </>
+                  ) : (
+                    <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>Using URL: {formData.url}</p>
+                  )}
+                </div>
+              )}
+
+              {/* OR divider */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '16px 0' }}>
+                <div style={{ flex: 1, height: '1px', backgroundColor: '#e2e8f0' }} />
+                <span style={{ fontSize: '12px', color: '#94a3b8' }}>OR paste URL</span>
+                <div style={{ flex: 1, height: '1px', backgroundColor: '#e2e8f0' }} />
+              </div>
+
               <input
                 type="url"
                 placeholder="https://example.com/ad-image.jpg"
                 value={formData.url}
-                onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, url: e.target.value });
+                  setSelectedFile(null);
+                  setPreviewUrl('');
+                }}
                 style={{
                   width: '100%',
                   padding: '12px',
@@ -189,9 +346,6 @@ export default function AdsManagementPage() {
                   boxSizing: 'border-box'
                 }}
               />
-              <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: '4px' }}>
-                Upload your image/video to Firebase Storage or any hosting and paste the URL here
-              </p>
             </div>
 
             <div>
@@ -216,49 +370,30 @@ export default function AdsManagementPage() {
             </div>
           </div>
 
-          {/* Preview */}
-          {formData.url && (
-            <div style={{ marginTop: '16px' }}>
-              <label style={{ fontSize: '13px', fontWeight: '500', color: '#64748b', display: 'block', marginBottom: '8px' }}>
-                Preview
-              </label>
-              <div style={{
-                width: '200px',
-                height: '120px',
-                backgroundColor: '#f1f5f9',
-                borderRadius: '8px',
-                overflow: 'hidden'
-              }}>
-                {formData.type === 'video' ? (
-                  <video src={formData.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
-                ) : (
-                  <img src={formData.url} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                )}
-              </div>
-            </div>
-          )}
-
           <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
             <button
               onClick={handleAddAd}
-              disabled={saving || !formData.title || !formData.url}
+              disabled={saving || uploading || !formData.title || (!formData.url && !selectedFile)}
               style={{
                 padding: '12px 24px',
-                backgroundColor: saving || !formData.title || !formData.url ? '#94a3b8' : '#059669',
+                backgroundColor: saving || uploading || !formData.title || (!formData.url && !selectedFile) ? '#94a3b8' : '#059669',
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '8px',
                 fontSize: '14px',
                 fontWeight: '600',
-                cursor: saving || !formData.title || !formData.url ? 'not-allowed' : 'pointer'
+                cursor: saving || uploading || !formData.title || (!formData.url && !selectedFile) ? 'not-allowed' : 'pointer'
               }}
             >
-              {saving ? 'Saving...' : 'Save Ad'}
+              {uploading ? 'Uploading...' : saving ? 'Saving...' : 'Save Ad'}
             </button>
             <button
               onClick={() => {
                 setShowForm(false);
                 setFormData({ title: '', type: 'image', url: '', duration: 5 });
+                setSelectedFile(null);
+                setPreviewUrl('');
+                if (fileInputRef.current) fileInputRef.current.value = '';
               }}
               style={{
                 padding: '12px 24px',
@@ -412,7 +547,7 @@ export default function AdsManagementPage() {
           <li>Users must watch the ad for the set duration before they can book</li>
           <li>Only active ads are shown to users</li>
           <li>If multiple ads are active, the most recent one is shown</li>
-          <li>Upload images/videos to Firebase Storage and paste the URL</li>
+          <li>Upload images/videos directly or paste an external URL</li>
         </ul>
       </div>
     </div>
